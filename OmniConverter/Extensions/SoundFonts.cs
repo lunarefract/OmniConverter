@@ -9,20 +9,42 @@ namespace OmniConverter
     {
         [JsonProperty("Path")]
         public string SoundFontPath { get; private set; }
+
         [JsonProperty]
         public short SourcePreset { get; private set; }
+
         [JsonProperty]
         public short SourceBank { get; private set; }
+
         [JsonProperty]
         public short DestinationPreset { get; private set; }
+
         [JsonProperty]
         public short DestinationBank { get; private set; }
+
         [JsonProperty]
         public short DestinationBankLSB { get; private set; }
+
         [JsonProperty]
         public bool Enabled { get; private set; }
+
         [JsonProperty]
-        public bool XGMode { get; private set; }
+        public bool XGDrums { get; private set; }
+
+        [JsonProperty]
+        public bool LinAttMod { get; private set; }
+
+        [JsonProperty]
+        public bool LinDecVol { get; private set; }
+
+        [JsonProperty]
+        public bool MinFx { get; private set; }
+
+        [JsonProperty]
+        public bool EnforceSBLimits { get; private set; }
+
+        [JsonProperty]
+        public bool NoRampIn { get; private set; }
 
         public SoundFont()
         {
@@ -33,22 +55,28 @@ namespace OmniConverter
             DestinationBank = 0;
             DestinationBankLSB = 0;
             Enabled = false;
-            XGMode = false;
+
+            XGDrums = false;
+            LinAttMod = false;
+            LinDecVol = false;
+            MinFx = false;
+            EnforceSBLimits = false;
+            NoRampIn = false;
         }
 
-        public SoundFont(string SFP, short SP, short SB, short DP, short DB, short DBLSB, bool E, bool XGM)
+        public SoundFont(string SFP, short SP, short SB, short DP, short DB, short DBLSB, bool E)
         {
             SoundFontPath = SFP;
-            SetNewValues(SP, SB, DP, DB, DBLSB, E, XGM);
+            SetPresetSettings(SP, SB, DP, DB, DBLSB, E);
         }
 
         public void ChangePath(string SFP)
         {
             SoundFontPath = SFP;
-            SetNewValues(SourcePreset, SourceBank, DestinationPreset, DestinationBank, DestinationBankLSB, Enabled, XGMode);
+            SetPresetSettings(SourcePreset, SourceBank, DestinationPreset, DestinationBank, DestinationBankLSB, Enabled);
         }
 
-        public void SetNewValues(short SP, short SB, short DP, short DB, short DBLSB, bool E, bool XGM)
+        public void SetPresetSettings(short SP, short SB, short DP, short DB, short DBLSB, bool E)
         {
             SourcePreset = IsSFZ() && SP < 0 ? (short)0: SP;
             SourceBank = IsSFZ() && SB < 0 ? (short)0 : SB;
@@ -56,7 +84,16 @@ namespace OmniConverter
             DestinationBank = DB;
             DestinationBankLSB = DBLSB;
             Enabled = E;
-            XGMode = XGM;
+        }
+
+        public void SetGenSettings(bool XGM, bool LAM, bool LDV, bool MF, bool SL, bool NRI)
+        {
+            XGDrums = XGM;
+            LinAttMod = LAM;
+            LinDecVol = LDV;
+            MinFx = MF;
+            EnforceSBLimits = SL;
+            NoRampIn = NRI;
         }
 
         public bool IsSFZ()

@@ -13,6 +13,7 @@ namespace OmniConverter
 {
     public class BASSEngine : AudioEngine
     {
+        private int FlacPlug = 0;
         private MidiFontEx[]? _bassArray;
 
         public BASSEngine(CSCore.WaveFormat waveFormat, Settings settings) : base(waveFormat, settings, false)
@@ -49,6 +50,7 @@ namespace OmniConverter
                 _bassArray = InitializeSoundFonts();
 
                 var tmp = BassMidi.CreateStream(16, BassFlags.Default, 0);
+                FlacPlug = Bass.PluginLoad($"{AppDomain.CurrentDomain.BaseDirectory}/bassflac");
 
                 if (tmp != 0)
                 {
@@ -65,6 +67,11 @@ namespace OmniConverter
 
                     Initialized = true;
 
+                    if (FlacPlug == 0)
+                        Debug.PrintToConsole(Debug.LogType.Warning, "BASSFLAC failed to load, this could lead to incorrect opcode handling when using SFZ based SoundFonts using FLAC samples.");
+                    else
+                        Debug.PrintToConsole(Debug.LogType.Message, "BASSFLAC loaded");
+
                     return;
                 }
             }
@@ -79,6 +86,9 @@ namespace OmniConverter
 
             if (_bassArray != null)
                 FreeSoundFontsArray();
+
+            if (FlacPlug != 0)
+                Bass.PluginFree(FlacPlug);
 
             if (Initialized)
                 Bass.Free();
@@ -100,10 +110,26 @@ namespace OmniConverter
                 }
 
                 MidiFontEx bsf;
+                FontInitFlags bsfl = 0;
+
+                // 0x40000 = BASS_MIDI_FONT_XGDRUMS
+                // 0x100000 = BASS_MIDI_FONT_LINATTMOD
+                // 0x200000 = BASS_MIDI_FONT_LINDECVOL
+                // 0x400000 = BASS_MIDI_FONT_NORAMPIN
+                // 0x800000 = BASS_MIDI_FONT_NOSBLIMITS
+                // 0x1000000 = BASS_MIDI_FONT_MINFX
+                // 0x2000000 = BASS_MIDI_FONT_SB_LIMITS
+
+                bsfl |= sf.XGDrums ? (FontInitFlags)0x40000 : 0;
+                bsfl |= sf.LinAttMod ? (FontInitFlags)0x100000 : 0;
+                bsfl |= sf.LinDecVol ? (FontInitFlags)0x200000 : 0;
+                bsfl |= sf.MinFx ? (FontInitFlags)0x1000000 : 0;
+                bsfl |= sf.EnforceSBLimits ? (FontInitFlags)0x2000000 : (FontInitFlags)0x800000;
+                bsfl |= sf.NoRampIn ? (FontInitFlags)0x400000 : 0;
+
                 Debug.PrintToConsole(Debug.LogType.Message, $"Preparing BASS_MIDI_FONTEX for {sf.SoundFontPath}...");
 
-                var sfHandle = BassMidi.FontInit(sf.SoundFontPath, sf.XGMode ? FontInitFlags.XGDrums : (FontInitFlags)0);
-
+                var sfHandle = BassMidi.FontInit(sf.SoundFontPath, bsfl);
                 if (sfHandle != 0)
                 {
                     Debug.PrintToConsole(Debug.LogType.Message, $"SoundFont handle initialized. Handle = {sfHandle:X8}");
@@ -116,8 +142,15 @@ namespace OmniConverter
                     bsf.DestinationBankLSB = sf.DestinationBankLSB;
                     Debug.PrintToConsole(Debug.LogType.Message,
                         string.Format(
-                            "spreset = {0}, sbank = {1}, dpreset = {2}, dbank = {3}, dbanklsb = {4}, xg = {5}",
-                            bsf.SoundFontPreset, bsf.SoundFontBank, bsf.DestinationPreset, bsf.DestinationBank, bsf.DestinationBankLSB, sf.XGMode
+                            "spreset = {0}, sbank = {1}, dpreset = {2}, dbank = {3}, dbanklsb = {4}",
+                            bsf.SoundFontPreset, bsf.SoundFontBank, bsf.DestinationPreset, bsf.DestinationBank, bsf.DestinationBankLSB, sf.XGDrums
+                            )
+                        );
+
+                    Debug.PrintToConsole(Debug.LogType.Message,
+                        string.Format(
+                            "xg = {0}, lam = {0}, ldv = {0}, mfx = {0}, sl = {0}, nri = {0}",
+                            sf.XGDrums, sf.LinAttMod, sf.LinDecVol, sf.MinFx, sf.EnforceSBLimits, sf.NoRampIn
                             )
                         );
 

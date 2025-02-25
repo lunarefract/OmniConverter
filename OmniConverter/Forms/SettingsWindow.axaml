@@ -64,10 +64,7 @@
 							<StackPanel>
 								<Grid ColumnDefinitions="1*, 2*" Margin="2">
 									<Label Grid.Column="0" Content="Voice limit" VerticalAlignment="Center"/>
-									<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Grid.Column="1" >
-										<CheckBox Name="BASS_NoVoiceLimit" Content="Uncap limit" Margin="0, 0, 10, 0" IsCheckedChanged="KhangModCheck"/>
-										<NumericUpDown Name="BASS_MaxVoices" HorizontalAlignment="Right" Width="180" FormatString="0" Value="100000" Minimum="1" Maximum="100000" ValueChanged="MaxVoicesChanged" />
-									</StackPanel>
+									<NumericUpDown Name="BASS_MaxVoices" HorizontalAlignment="Right" Width="180" FormatString="0" Value="100000" Minimum="1" Maximum="14000000" ValueChanged="MaxVoicesChanged" Grid.Column="1" />
 								</Grid>
 								<CheckBox Name="BASS_DisableFX" Content="Disable sound FXs (Reverb, Chorus etc.)" Margin="2" />
 								<CheckBox Name="BASS_NoteOff1" Content="Follow overlaps when processing note off events" Margin="2" />

@@ -5,15 +5,15 @@
 		xmlns:oc="using:OmniConverter"
 		xmlns:ctrl="using:GroupBox.Avalonia.Controls"
 		xmlns:themes="using:GroupBox.Avalonia.Themes"
-        mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="600"
-		Width="1000" Height="600"
+        mc:Ignorable="d" d:DesignWidth="870" d:DesignHeight="650"
+		Width="870" Height="650"
         x:Class="OmniConverter.SoundFontsManager"
         Title="SoundFonts Manager"
 		ShowInTaskbar="False"
 		WindowStartupLocation="CenterOwner"
         RequestedThemeVariant="Dark">
 	<Grid Name="MainView" RowDefinitions="4*, 70" Margin="10">
-		<Grid Name="SoundFontList" ColumnDefinitions="4*, 260" Grid.Row="0">
+		<Grid Name="SoundFontList" ColumnDefinitions="4*, 320" Grid.Row="0">
 			<ListBox Name="SoundFontListView" SelectionMode="Multiple" Grid.Column="0" DragDrop.AllowDrop="True" SelectionChanged="SelectedSFChanged">
 				<ListBox.ItemTemplate>
 					<DataTemplate>
@@ -51,8 +51,13 @@
 							</Grid>
 						</StackPanel>
 						<StackPanel Margin="4">
-							<Label Content="ADDITIONAL SET." HorizontalContentAlignment="Center" FontWeight="Bold"/>
-							<CheckBox Name="XGMode" Content="Load XG bank first" HorizontalAlignment="Center" />
+							<Label Content="ADDITIONAL SET." HorizontalContentAlignment="Center" FontWeight="Bold" Padding="4, 4, 4, 8"/>
+							<CheckBox Name="XGDrums" Content="Load XG bank first" HorizontalAlignment="Left" />
+							<CheckBox Name="LinAttMod" Content="Use linear attack"  HorizontalAlignment="Left" />
+							<CheckBox Name="LinDecVol" Content="Use linear decay/release" HorizontalAlignment="Left" />
+							<CheckBox Name="MinFx" Content="Treat reverb/chorus val. as min."  HorizontalAlignment="Left" />
+							<CheckBox Name="EnforceSBLimits" Content="Enforce SoundBlaster gen. limits" HorizontalAlignment="Left" />
+							<CheckBox Name="NoRampIn" Content="Do not ramp-in start of samples"  HorizontalAlignment="Left" />
 						</StackPanel>
 					</StackPanel>
 					<StackPanel VerticalAlignment="Bottom">

@@ -110,7 +110,8 @@ public partial class TaskStatus : UserControl
         var speed = processed / (dtCurrent - _dtStart).TotalSeconds;
         if (speed > 0)
         {
-            _eta = TimeSpan.FromSeconds(Convert.ToDouble(remaining) / speed);
+            try { _eta = TimeSpan.FromSeconds(Convert.ToDouble(remaining) / speed); }
+            catch { _eta = TimeSpan.FromSeconds(0); }
             etaText = MiscFunctions.TimeSpanToHumanReadableTime(_eta);
         }
 

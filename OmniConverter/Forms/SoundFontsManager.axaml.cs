@@ -3,6 +3,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using ManagedBass.Midi;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -20,6 +21,20 @@ public partial class SoundFontsManager : Window
         AddHandler(DragDrop.DropEvent, FileDropInit);
         AddHandler(DragDrop.DragEnterEvent, FileDropEnter);
         // AddHandler(DragDrop.DragLeaveEvent, FileDropLeave);
+
+        switch (Program.Settings.Renderer)
+        {
+            case EngineID.BASS:
+                break;
+
+            default:
+                LinAttMod.IsVisible = false;
+                LinDecVol.IsVisible = false;
+                MinFx.IsVisible = false;
+                EnforceSBLimits.IsVisible = false;
+                NoRampIn.IsVisible = false;
+                break;
+        }
     }
 
     private void AddSFCheck(IEnumerable<IStorageItem>? files, bool dragndrop = false)
@@ -58,7 +73,7 @@ public partial class SoundFontsManager : Window
                 if (err != 0)
                 {
                     BassMidi.FontFree(err);
-                    Program.SoundFontsManager.Add(new SoundFont(filename, -1, -1, -1, 0, 0, true, false));
+                    Program.SoundFontsManager.Add(new SoundFont(filename, -1, -1, -1, 0, 0, true));
                 }
             }
         }
@@ -79,7 +94,14 @@ public partial class SoundFontsManager : Window
         {
             var item = Program.SoundFontsManager.GetSoundFontList()[index];
 
-            XGMode.IsChecked = item.XGMode;
+            XGDrums.IsChecked = item.XGDrums;
+
+            LinAttMod.IsChecked = item.LinAttMod;
+            LinDecVol.IsChecked = item.LinDecVol;
+            MinFx.IsChecked = item.MinFx;
+            EnforceSBLimits.IsChecked = item.EnforceSBLimits;
+            NoRampIn.IsChecked = item.NoRampIn;         
+
             Enabled.IsChecked = item.Enabled;
 
             SourceBank.Minimum = item.IsSFZ() ? 0 : -1;
@@ -94,7 +116,13 @@ public partial class SoundFontsManager : Window
             return;
         }
 
-        XGMode.IsChecked = false;
+        XGDrums.IsChecked = false;
+        LinAttMod.IsChecked = false;
+        LinDecVol.IsChecked = false;
+        MinFx.IsChecked = false;
+        EnforceSBLimits.IsChecked = false;
+        NoRampIn.IsChecked = false;
+
         Enabled.IsChecked = false;
 
         SourceBank.Minimum = -1;
@@ -116,10 +144,19 @@ public partial class SoundFontsManager : Window
         {
             var item = (SoundFont)SoundFontListView.Items[index];
 
-            item.SetNewValues(
+            item.SetPresetSettings(
                      (short)SourceBank.Value, (short)SourceBank.Value,
                      (short)DestinationPreset.Value, (short)DestinationBank.Value, (short)DestinationBankLSB.Value,
-                     (bool)Enabled.IsChecked, (bool)XGMode.IsChecked);
+                     (bool)Enabled.IsChecked);
+
+            item.SetGenSettings(
+                (bool)XGDrums.IsChecked, 
+                (bool)LinAttMod.IsChecked,
+                (bool)LinDecVol.IsChecked, 
+                (bool)MinFx.IsChecked, 
+                (bool)EnforceSBLimits.IsChecked, 
+                (bool)NoRampIn.IsChecked);
+
             return;
         }
 

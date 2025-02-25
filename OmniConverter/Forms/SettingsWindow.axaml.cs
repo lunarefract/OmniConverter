@@ -182,15 +182,6 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private void KhangModCheck(object? sender, RoutedEventArgs e)
-    {
-        if (BASS_NoVoiceLimit.IsChecked != null)
-        {
-            BASS_MaxVoices.Maximum = (bool)BASS_NoVoiceLimit.IsChecked ? int.MaxValue : 100000;
-            MaxVoicesChanged(null, new NumericUpDownValueChangedEventArgs(e.RoutedEvent, null, null));
-        }
-    }
-
     private void UnlimitedLayersCheck(object? sender, RoutedEventArgs e)
     {
         if (XSynth_NoLayerLimit.IsChecked != null)
@@ -211,7 +202,6 @@ public partial class SettingsWindow : Window
             switch ((EngineID)SelectedRenderer.SelectedIndex)
             {
                 case EngineID.BASS:
-                    BASS_NoVoiceLimit.IsChecked = Program.Settings.BASS.MaxVoices > 100000;
                     BASS_MaxVoices.Value = Program.Settings.BASS.MaxVoices;
 
                     BASSSettingsPanel.IsVisible = true;
