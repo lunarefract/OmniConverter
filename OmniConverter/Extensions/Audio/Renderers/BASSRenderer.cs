@@ -50,7 +50,7 @@ namespace OmniConverter
                 _bassArray = InitializeSoundFonts();
 
                 var tmp = BassMidi.CreateStream(16, BassFlags.Default, 0);
-                FlacPlug = Bass.PluginLoad($"{AppDomain.CurrentDomain.BaseDirectory}/bassflac");
+                FlacPlug = Bass.PluginLoad($"{AppContext.BaseDirectory}/bassflac");
 
                 if (tmp != 0)
                 {

@@ -16,7 +16,9 @@ public partial class InfoWindow : Window
     {
         InitializeComponent();
 
+        var pp = Environment.ProcessPath;
         var cv = Assembly.GetExecutingAssembly().GetName().Version;
+        bool isDev = false;
 
         var dummy = new Version(0, 0, 0, 0);
         Version? bassVer = dummy;
@@ -28,11 +30,21 @@ public partial class InfoWindow : Window
         try { bmidiVer = BassMidi.Version; } catch { }
         try { xsynthVer = XSynth.Version; } catch { }
 
+        if (Environment.ProcessPath != null)
+        {
+            var fcv = FileVersionInfo.GetVersionInfo(Environment.ProcessPath);
 
-        ConvBrand.Content = MiscFunctions.ReturnAssemblyVersion("OmniConverter", "CR", [convVer.Major, convVer.Minor, convVer.Build, convVer.MinorRevision]);
-        BASSVersion.Content = MiscFunctions.ReturnAssemblyVersion(string.Empty, "Rev. ", [bassVer.Major, bassVer.Minor, bassVer.Build, bassVer.MinorRevision]);
-        BMIDIVersion.Content = MiscFunctions.ReturnAssemblyVersion(string.Empty, "Rev. ", [bmidiVer.Major, bmidiVer.Minor, bmidiVer.Build, bmidiVer.MinorRevision]);
-        XSynthVersion.Content = MiscFunctions.ReturnAssemblyVersion(string.Empty, "Rev. ", [xsynthVer.Major, xsynthVer.Minor, xsynthVer.Build, xsynthVer.MinorRevision]);
+            if (fcv.ProductVersion != null && fcv.ProductVersion.Contains("dev"))
+            {
+                ToolTip.SetTip(ConvBrand, fcv.ProductVersion);
+                isDev = true;
+            }
+        }
+
+        ConvBrand.Content = MiscFunctions.ReturnAssemblyVersion($"OmniConverter{(isDev ? " DEV" : "")}", "PR", [convVer.Major, convVer.Minor, convVer.Build, convVer.Revision]);
+        BASSVersion.Content = MiscFunctions.ReturnAssemblyVersion(string.Empty, "Rev. ", [bassVer.Major, bassVer.Minor, bassVer.Build, bassVer.Revision]);
+        BMIDIVersion.Content = MiscFunctions.ReturnAssemblyVersion(string.Empty, "Rev. ", [bmidiVer.Major, bmidiVer.Minor, bmidiVer.Build, bmidiVer.Revision]);
+        XSynthVersion.Content = MiscFunctions.ReturnAssemblyVersion(string.Empty, "Rev. ", [xsynthVer.Major, xsynthVer.Minor, xsynthVer.Build, xsynthVer.Revision]);
 
         SetBranchColor();
     }

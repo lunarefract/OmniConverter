@@ -15,6 +15,8 @@
     <PackageIcon>OmniConverter.png</PackageIcon>
     <ApplicationIcon>OCLogo.ico</ApplicationIcon>
     <TargetFrameworks>net8.0;net8.0-windows</TargetFrameworks>
+    <Version>$(AssemblyVersion)</Version>
+    <VersionSuffix Condition=" '$(Configuration)' == 'Debug' ">dev</VersionSuffix>
   </PropertyGroup>
   <ItemGroup>
     <Content Include="OCLogo.ico" />
