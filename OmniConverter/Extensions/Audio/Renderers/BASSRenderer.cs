@@ -306,7 +306,7 @@ namespace OmniConverter
                     break;
 
                 default:
-                    BassMidi.StreamEvents(Handle, MidiEventsMode.Raw | MidiEventsMode.NoRunningStatus, data);
+                    BassMidi.StreamEvents(Handle, MidiEventsMode.Raw, data, data.Length);
                     return;
             }
 
