@@ -296,7 +296,7 @@ namespace OmniConverter
         public override void SendEvent(byte[] data)
         {
             var status = data[0];
-            var param1 = data[1];
+            var param1 = data.Length >= 2 ? data[1] : 0;
             var param2 = data.Length >= 3 ? data[2] : 0;
             
             int eventParams;
@@ -307,14 +307,17 @@ namespace OmniConverter
                 case MIDIEventType.NoteOn:
                     if (reference.CachedSettings.Event.FilterVelocity && param2 >= reference.CachedSettings.Event.VelocityLow && param2 <= reference.CachedSettings.Event.VelocityHigh)
                         return;
+
                     if (reference.CachedSettings.Event.FilterKey && (param1 < reference.CachedSettings.Event.KeyLow || param1 > reference.CachedSettings.Event.KeyHigh))
                         return;
+
                     eventParams = param2 << 8 | param1;
                     break;
 
                 case MIDIEventType.NoteOff:
                     if (reference.CachedSettings.Event.FilterKey && (param1 < reference.CachedSettings.Event.KeyLow || param1 > reference.CachedSettings.Event.KeyHigh))
                         return;
+
                     eventParams = param1;
                     break;
 
@@ -339,7 +342,7 @@ namespace OmniConverter
                     break;
 
                 default:
-                    BassMidi.StreamEvents(Handle, MidiEventsMode.Raw, data, data.Length);
+                    BassMidi.StreamEvents(Handle, MidiEventsMode.Raw | MidiEventsMode.NoRunningStatus, data, data.Length);
                     return;
             }
 

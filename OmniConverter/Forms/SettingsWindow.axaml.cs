@@ -194,6 +194,7 @@ public partial class SettingsWindow : Window
             switch ((EngineID)SelectedRenderer.SelectedIndex)
             {
                 case EngineID.BASS:
+                case EngineID.FluidSynth:
                     BASS_MaxVoices.Value = Program.Settings.Synth.MaxVoices;
 
                     BASSSettingsPanel.IsVisible = true;

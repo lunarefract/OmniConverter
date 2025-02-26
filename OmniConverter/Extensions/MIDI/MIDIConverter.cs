@@ -912,7 +912,7 @@ namespace OmniConverter
 
                 if (_midiRenderer != null)
                 {
-                    _midiRenderer.SystemReset();
+                    // _midiRenderer.SystemReset();
 
                     float[] buffer = new float[256 * waveFormat.BlockAlign];
                     long prevWriteTime = 0;
@@ -976,10 +976,10 @@ namespace OmniConverter
                             switch (e)
                             {
                                 case ControlChangeEvent ev:
-                                    if (!(_audioRenderer.CachedSettings.Event.OverrideEffects && (ev.Controller == 0x5B || ev.Controller == 0x5D)))
-                                        goto default;
+                                    if (_audioRenderer.CachedSettings.Event.OverrideEffects && (ev.Controller == 0x5B || ev.Controller == 0x5D))
+                                        break;
 
-                                    break;
+                                    goto default;
 
                                 case ProgramChangeEvent:
                                     if (!_audioRenderer.CachedSettings.Event.IgnoreProgramChanges)

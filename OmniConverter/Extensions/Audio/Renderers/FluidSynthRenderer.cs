@@ -223,22 +223,21 @@ namespace OmniConverter
                         {
                             case MIDIEventType.SystemMessageStart:
                                 {
-                                    string sysexbuf = string.Empty;
+                                    byte[] refactor = new byte[data.Length - 2];
+                                    byte[] dummy = new byte[refactor.Length];
 
-                                    foreach (byte ch in data)
-                                        sysexbuf += $"{ch:X}";
+                                    for (int i = 1; i < data.Length - 1; i++)
+                                        refactor[i - 1] = data[i];
+                     
+                                    if (!handle.Sysex(refactor, 0, refactor.Length, dummy, 0, dummy.Length))
+                                    {
+                                        string sysexbuf = string.Empty;
 
-                                    try
-                                    {
-                                        if (handle.Sysex(data, null, false))
-                                            Debug.PrintToConsole(Debug.LogType.Message, $"SysEx parsed! >> {sysexbuf}");
-                                    }
-                                    catch
-                                    {
+                                        foreach (byte ch in refactor)
+                                            sysexbuf += $"{ch:X}";
 
                                         Debug.PrintToConsole(Debug.LogType.Error, $"Invalid SysEx! >> {sysexbuf}");
                                     }
-                          
                                 }
                                 return;
 

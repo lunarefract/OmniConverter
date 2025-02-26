@@ -165,6 +165,7 @@ namespace OmniConverter
                             case ProgramChangeEvent pcev:
                             case ChannelPressureEvent cpev:
                             case PitchWheelChangeEvent pwcev:
+                            case SystemExclusiveMessageEvent sysexev:
                                 e.DeltaTime += delta;
                                 delta = 0;
                                 trackMetaEvents.Add(e);
