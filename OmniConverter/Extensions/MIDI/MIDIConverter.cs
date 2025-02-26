@@ -938,11 +938,12 @@ namespace OmniConverter
                             while (pauseConversion)
                                 Thread.Sleep(500);
 
+                            deltaTime += e.DeltaTime;
+                            _converted = deltaTime;
+
                             if (e is UndefinedEvent)
                                 continue;
 
-                            deltaTime += e.DeltaTime;
-                            _converted = deltaTime;
                             var eb = e.GetData(scratch);
 
                             if (rtsMode)
