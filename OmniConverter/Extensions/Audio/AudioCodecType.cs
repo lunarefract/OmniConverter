@@ -42,6 +42,72 @@ namespace OmniConverter
             };
         }
 
+        public static bool CanHandleFloatingPoint(this AudioCodecType codec)
+        {
+            switch (codec)
+            {
+                case AudioCodecType.FLAC:
+                case AudioCodecType.LAME:
+                    return false;
+
+                default:
+                    return true;
+            }
+        }
+
+        public static bool OffersBitrateSetting(this AudioCodecType codec)
+        {
+            switch (codec)
+            {
+                case AudioCodecType.LAME:
+                case AudioCodecType.Vorbis:
+                    return true;
+
+                default:
+                    return false;
+            }
+        }
+
+        public static bool IsValidFormat(this AudioCodecType codec, int sampleRate, int bitrate, out string Reason)
+        {
+            bool checkFailed = false;
+            string error = string.Empty;
+            int maxSampleRate = 0;
+            int maxBitrate = 0;
+
+            switch (codec)
+            {
+                case AudioCodecType.FLAC:
+                    maxSampleRate = 384000;
+                    maxBitrate = int.MaxValue;
+                    break;
+
+                case AudioCodecType.LAME:
+                    maxSampleRate = 48000;
+                    maxBitrate = 320;
+                    break;
+
+                case AudioCodecType.Vorbis:
+                    maxSampleRate = 48000;
+                    maxBitrate = 480;
+                    break;
+
+                case AudioCodecType.PCM:
+                default:
+                    Reason = string.Empty;
+                    return true;
+            }
+
+            if (sampleRate > maxSampleRate)
+                error += $"{codec.ToExtension()} does not support sample rates above {maxSampleRate / 1000}kHz.";
+
+            if (bitrate > maxBitrate)
+                error += $"{(string.IsNullOrEmpty(error) ? "" : "\n\n")}{codec.ToExtension()} does not support bitrates above {maxBitrate}kbps.";
+
+            Reason = error;
+            return !checkFailed;
+        }
+
         // Hacky shit
         public static string? CheckFFMpegDirectory()
         {

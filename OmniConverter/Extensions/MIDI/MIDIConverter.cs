@@ -3,6 +3,7 @@ using Avalonia.Threading;
 using CSCore;
 using CSCore.Codecs.WAV;
 using FFMpegCore;
+using FFMpegCore.Enums;
 using MIDIModificationFramework;
 using MIDIModificationFramework.MIDIEvents;
 using System;
@@ -45,6 +46,11 @@ namespace OmniConverter
         private WaveFormat _waveFormat;
         private Settings _cachedSettings;
 
+        private bool _autoDev = false;
+        private bool _audLimiter = false;
+        private bool _separateTrackFiles = false;
+        private AudioCodecType _audCodec = AudioCodecType.PCM;
+
         private string _curStatus = string.Empty;
         private double _progress = 0;
         private double _tracksProgress = 0;
@@ -63,7 +69,11 @@ namespace OmniConverter
             _validator = new MIDIValidator((ulong)_midis.Count);
             _threadsCount = _cachedSettings.Render.MultiThreadedMode ? threads.LimitToRange(1, 65536) : 1;
 
-            _parallelOptions = new ParallelOptions { 
+            var concurrentScheduler = new ConcurrentExclusiveSchedulerPair(
+                TaskScheduler.Default, maxConcurrencyLevel: _threadsCount).ConcurrentScheduler;
+
+            _parallelOptions = new ParallelOptions {
+                TaskScheduler = concurrentScheduler,
                 MaxDegreeOfParallelism = _threadsCount, 
                 CancellationToken = _cancToken.Token
             };
@@ -82,11 +92,11 @@ namespace OmniConverter
 
         public override bool StartWork()
         {
-            if (_cachedSettings.Renderer == EngineID.BASS && _cachedSettings.BASS.MaxVoices >= 10000000)
+            if (_cachedSettings.Renderer == EngineID.BASS && _cachedSettings.Synth.MaxVoices >= 10000000)
             {
                 var biggestMidi = _midis.MaxBy(x => x.Tracks);
 
-                var v = _cachedSettings.BASS.MaxVoices;
+                var v = _cachedSettings.Synth.MaxVoices;
                 var mem = ((ulong)v * 312) * (ulong)_cachedSettings.Render.ThreadsCount;
                 var memusage = MiscFunctions.BytesToHumanReadableSize(mem);
 
@@ -129,22 +139,16 @@ namespace OmniConverter
                     }
                 }
 
-                switch (_cachedSettings.Encoder.AudioCodec)
+                string Reason = string.Empty;
+                bool codecCheck = _cachedSettings.Encoder.AudioCodec.IsValidFormat(_cachedSettings.Synth.SampleRate, _cachedSettings.Encoder.AudioBitrate, out Reason);
+                if (!codecCheck)
                 {
-                    case AudioCodecType.LAME:
-                        if (IsInvalidFormat(AudioCodecType.LAME, 48000, 320))
-                            return false;
+                    if (_cachedSettings.Program.AudioEvents)
+                        MiscFunctions.PlaySound(MiscFunctions.ConvSounds.Error, true);
 
-                        break;
+                    MessageBox.Show(_winRef, Reason, "OmniConverter - Error", MsBox.Avalonia.Enums.ButtonEnum.Ok, MsBox.Avalonia.Enums.Icon.Error);
 
-                    case AudioCodecType.Vorbis:
-                        if (IsInvalidFormat(AudioCodecType.Vorbis, 48000, 480))
-                            return false;
-
-                        break;
-
-                    default:
-                        break;
+                    return false;
                 }
             }
 
@@ -265,18 +269,24 @@ namespace OmniConverter
                         _audioRenderer = new XSynthEngine(_waveFormat, _cachedSettings);
                         break;
 
+                    case EngineID.FluidSynth:
+                        _audioRenderer = new FluidSynthEngine(_waveFormat, _cachedSettings);
+                        break;
+
                     case EngineID.BASS:
                     default:
-                        // do this hacky crap to get the voice change to work
-                        _audioRenderer = new BASSEngine(_waveFormat, _cachedSettings);
-                        _audioRenderer.Dispose();
-
                         _audioRenderer = new BASSEngine(_waveFormat, _cachedSettings);
                         break;
                 }
 
                 if (_audioRenderer.Initialized)
                 {
+                    // Cache variables
+                    _autoDev = _audioRenderer is BASSEngine;
+                    _separateTrackFiles = _cachedSettings.Render.PerTrackFile;
+                    _audCodec = _cachedSettings.Encoder.AudioCodec;
+                    _audLimiter = !_audCodec.CanHandleFloatingPoint() || _cachedSettings.Synth.AudioLimiter;
+
                     if (_cachedSettings.Render.PerTrackMode)
                     {
                         if (_midis.Count > 1)
@@ -323,57 +333,16 @@ namespace OmniConverter
             _validator.SetTotalEventsCount(totalEvents);
         }
 
-        private bool IsInvalidFormat(AudioCodecType codec, int maxSampleRate, int maxBitrate)
-        {
-            string error = string.Empty;
-
-            if (_cachedSettings.Synth.SampleRate > maxSampleRate || _cachedSettings.Encoder.AudioBitrate > maxBitrate)
-            {
-                if (_cachedSettings.Program.AudioEvents)
-                    MiscFunctions.PlaySound(MiscFunctions.ConvSounds.Error, true);
-
-                if (_cachedSettings.Synth.SampleRate > maxSampleRate)
-                    error += $"{codec.ToExtension()} does not support sample rates above {maxSampleRate / 1000}kHz.";
-
-                if (_cachedSettings.Encoder.AudioBitrate > maxBitrate)
-                    error += $"{(string.IsNullOrEmpty(error) ? "" : "\n\n")}{codec.ToExtension()} does not support bitrates above {maxBitrate}kbps.";
-
-
-                MessageBox.Show(_winRef, error, "OmniConverter - Error", MsBox.Avalonia.Enums.ButtonEnum.Ok, MsBox.Avalonia.Enums.Icon.Error);
-
-                return true;
-            }
-
-            return false;
-        }
-
-        private bool CheckIfCodecCanFloat(AudioCodecType codec)
-        {
-            switch (codec)
-            {
-                case AudioCodecType.LAME:
-                    return false;
-
-                default:
-                    return true;
-            }
-        }
-
         private void PerMIDIConversion()
         {
             if (_audioRenderer == null)
                 return;
 
-            // Cache settings
-            var autoDevice = _audioRenderer is BASSEngine;
-            var codec = _cachedSettings.Encoder.AudioCodec;
-            var audioLimiter = !CheckIfCodecCanFloat(codec) || _cachedSettings.Synth.AudioLimiter;
-
             AutoFillInfo(ConvStatus.Prep);
             GetTotalEventsCount();
 
             if (_cachedSettings.Program.AudioEvents)
-                MiscFunctions.PlaySound(MiscFunctions.ConvSounds.Start, !autoDevice);
+                MiscFunctions.PlaySound(MiscFunctions.ConvSounds.Start, !_autoDev);
 
             _convElapsedTime.Reset();
             _convElapsedTime.Start();
@@ -393,8 +362,8 @@ namespace OmniConverter
 
                     // Prepare the filename
                     string fallbackFile = GetOutputFilename(midi.Name, AudioCodecType.PCM, false);
-                    string outputFile1 = GetOutputFilename(midi.Name, codec, true);
-                    string outputFile2 = GetOutputFilename(midi.Name, codec, false);
+                    string outputFile1 = GetOutputFilename(midi.Name, _audCodec, true);
+                    string outputFile2 = GetOutputFilename(midi.Name, _audCodec, false);
 
                     Debug.PrintToConsole(Debug.LogType.Message, $"Output file: {outputFile1}");
 
@@ -458,7 +427,7 @@ namespace OmniConverter
 
                             IWaveSource MStream;
                             Limiter BAC;
-                            if (audioLimiter && _waveFormat.BitsPerSample == 32)
+                            if (_audLimiter && _waveFormat.BitsPerSample == 32)
                             {
                                 Debug.PrintToConsole(Debug.LogType.Message, "LoudMax enabled.");
                                 BAC = new Limiter(msm, 0.1);
@@ -481,13 +450,13 @@ namespace OmniConverter
                             FDestination.Dispose();
                             FOpen.Dispose();
 
-                            if (codec != AudioCodecType.PCM)
+                            if (_audCodec != AudioCodecType.PCM)
                             {
                                 try
                                 {
                                     AutoFillInfo(ConvStatus.EncodingAudio);
 
-                                    var ffcodec = codec.ToFFMpegCodec();
+                                    var ffcodec = _audCodec.ToFFMpegCodec();
 
                                     if (ffcodec == null)
                                         throw new Exception();
@@ -522,11 +491,11 @@ namespace OmniConverter
             if (!_cancToken.IsCancellationRequested)
             {
                 if (_cachedSettings.Program.AudioEvents)
-                    MiscFunctions.PlaySound(MiscFunctions.ConvSounds.Finish, !autoDevice);
+                    MiscFunctions.PlaySound(MiscFunctions.ConvSounds.Finish, !_autoDev);
 
                 MiscFunctions.PerformShutdownCheck(_convElapsedTime);
             }
-            else MiscFunctions.PlaySound(MiscFunctions.ConvSounds.Error, !autoDevice);
+            else MiscFunctions.PlaySound(MiscFunctions.ConvSounds.Error, !_autoDev);
 
             Dispatcher.UIThread.Post(_winRef.Close);
         }
@@ -536,14 +505,8 @@ namespace OmniConverter
             if (_audioRenderer == null)
                 return;
 
-            // Cache settings
-            var autoDevice = _audioRenderer is BASSEngine;
-            var perTrackFile = _cachedSettings.Render.PerTrackFile;
-            var codec = _cachedSettings.Encoder.AudioCodec;
-            var audioLimiter = !CheckIfCodecCanFloat(codec) || _cachedSettings.Synth.AudioLimiter;
-
             if (_cachedSettings.Program.AudioEvents)
-                MiscFunctions.PlaySound(MiscFunctions.ConvSounds.Start, !autoDevice);
+                MiscFunctions.PlaySound(MiscFunctions.ConvSounds.Start, !_autoDev);
 
             GetTotalEventsCount();
 
@@ -568,9 +531,8 @@ namespace OmniConverter
 
                 using (MultiStreamMerger msm = new(_waveFormat))
                 {
-
                     // Per track!
-                    if (perTrackFile)
+                    if (_separateTrackFiles)
                     {
                         // We do, create folder
                         folder += string.Format("/{0}", Path.GetFileNameWithoutExtension(midi.Name));
@@ -583,7 +545,7 @@ namespace OmniConverter
 
                     folder += "/";
 
-                    Parallel.For(midiData.Count(), _parallelOptions, track =>
+                    Parallel.For(_validator.GetTotalTracks(), _parallelOptions, track =>
                     {
                         try
                         {
@@ -612,15 +574,15 @@ namespace OmniConverter
                                 Debug.PrintToConsole(Debug.LogType.Message, $"ConvertWorker => T{track}, {midi.Length.TotalSeconds}");
 
                                 // Per track!
-                                if (perTrackFile)
+                                if (_separateTrackFiles)
                                 {
                                     // Prepare the filename
                                     fallbackFile = outputFile2 = string.Format("{0}Track {1}{2}",
                                         folder, track, AudioCodecType.PCM.ToExtension());
                                     outputFile1 = string.Format("{0}Track {1}{2}{3}",
-                                        folder, track, codec.ToExtension(), codec != AudioCodecType.PCM ? ".swp" : "");
+                                        folder, track, _audCodec.ToExtension(), _audCodec != AudioCodecType.PCM ? ".swp" : "");
                                     outputFile2 = string.Format("{0}Track {1}{2}",
-                                        folder, track, codec.ToExtension());
+                                        folder, track, _audCodec.ToExtension());
 
                                     // Check if file already exists
                                     if (File.Exists(outputFile1))
@@ -630,9 +592,9 @@ namespace OmniConverter
                                         fallbackFile = outputFile2 = string.Format("{0}Track {1} - {2}{3}",
                                             folder, track, date, AudioCodecType.PCM.ToExtension());
                                         outputFile1 = string.Format("{0}Track {1} - {2}{3}{4}",
-                                            folder, track, date, codec.ToExtension(), codec != AudioCodecType.PCM ? ".swp" : "");
+                                            folder, track, date, _audCodec.ToExtension(), _audCodec != AudioCodecType.PCM ? ".swp" : "");
                                         outputFile2 = string.Format("{0}Track {1} - {2}{3}",
-                                            folder, track, date, codec.ToExtension());
+                                            folder, track, date, _audCodec.ToExtension());
                                     }
 
                                     sampleWriter = trackMsm.GetWriter();
@@ -675,13 +637,13 @@ namespace OmniConverter
                                     Dispatcher.UIThread.Post(() => trackPanel?.Dispose());
                                 }
 
-                                if (perTrackFile)
+                                if (_separateTrackFiles)
                                 {
                                     // Reset MSM position
                                     trackMsm.Position = 0;
 
                                     IWaveSource exportSource;
-                                    if (audioLimiter && _waveFormat.BitsPerSample == 32)
+                                    if (_audLimiter && _waveFormat.BitsPerSample == 32)
                                     {
                                         Debug.PrintToConsole(Debug.LogType.Message, "LoudMax enabled.");
                                         var BAC = new Limiter(trackMsm, 0.1);
@@ -707,13 +669,13 @@ namespace OmniConverter
                                         fileWriter.Dispose();
                                     }
 
-                                    if (codec != AudioCodecType.PCM)
+                                    if (_audCodec != AudioCodecType.PCM)
                                     {
                                         try
                                         {
                                             Debug.PrintToConsole(Debug.LogType.Message, $"Converting {outputFile1} to final user selected codec...");
 
-                                            var ffcodec = codec.ToFFMpegCodec();
+                                            var ffcodec = _audCodec.ToFFMpegCodec();
 
                                             if (ffcodec == null)
                                                 throw new Exception();
@@ -749,21 +711,21 @@ namespace OmniConverter
 
                     try
                     {
-                        if (!perTrackFile)
+                        if (!_separateTrackFiles)
                         {
                             // Reset MSM position
                             msm.Position = 0;
 
                             // Time to save the file
                             string fallbackFile = GetOutputFilename(midi.Name, AudioCodecType.PCM, false);
-                            var outputFile1 = GetOutputFilename(midi.Name, codec, true);
-                            var outputFile2 = GetOutputFilename(midi.Name, codec, false);
+                            var outputFile1 = GetOutputFilename(midi.Name, _audCodec, true);
+                            var outputFile2 = GetOutputFilename(midi.Name, _audCodec, false);
 
                             Debug.PrintToConsole(Debug.LogType.Message, $"Output file: {outputFile1}");
 
                             // Prepare wave source
                             IWaveSource? MStream = null;
-                            if (audioLimiter && _waveFormat.BitsPerSample == 32)
+                            if (_audLimiter && _waveFormat.BitsPerSample == 32)
                             {
                                 Debug.PrintToConsole(Debug.LogType.Message, "LoudMax enabled.");
                                 var BAC = new Limiter(msm, 0.1);
@@ -792,13 +754,13 @@ namespace OmniConverter
                                 fileWriter.Dispose();
                             }
 
-                            if (codec != AudioCodecType.PCM)
+                            if (_audCodec != AudioCodecType.PCM)
                             {
                                 try
                                 {
                                     AutoFillInfo(ConvStatus.EncodingAudio);
 
-                                    var ffcodec = codec.ToFFMpegCodec();
+                                    var ffcodec = _audCodec.ToFFMpegCodec();
 
                                     if (ffcodec == null)
                                         throw new Exception();
@@ -836,11 +798,11 @@ namespace OmniConverter
             if (!_cancToken.IsCancellationRequested)
             {
                 if (_cachedSettings.Program.AudioEvents)
-                    MiscFunctions.PlaySound(MiscFunctions.ConvSounds.Finish, !autoDevice);
+                    MiscFunctions.PlaySound(MiscFunctions.ConvSounds.Finish, !_autoDev);
 
                 MiscFunctions.PerformShutdownCheck(_convElapsedTime);
             }
-            else MiscFunctions.PlaySound(MiscFunctions.ConvSounds.Error, !autoDevice);
+            else MiscFunctions.PlaySound(MiscFunctions.ConvSounds.Error, !_autoDev);
 
             Dispatcher.UIThread.Post(_winRef.Close);
         }
@@ -938,6 +900,10 @@ namespace OmniConverter
 
                     case BASSEngine bass:
                         _midiRenderer = new BASSRenderer(bass);
+                        break;
+
+                    case FluidSynthEngine fluidsynth:
+                        _midiRenderer = new FluidSynthRenderer(fluidsynth);
                         break;
 
                     default:

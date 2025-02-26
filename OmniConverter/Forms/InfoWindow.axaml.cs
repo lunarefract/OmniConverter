@@ -30,9 +30,9 @@ public partial class InfoWindow : Window
         try { bmidiVer = BassMidi.Version; } catch { }
         try { xsynthVer = XSynth.Version; } catch { }
 
-        if (Environment.ProcessPath != null)
+        if (pp != null)
         {
-            var fcv = FileVersionInfo.GetVersionInfo(Environment.ProcessPath);
+            var fcv = FileVersionInfo.GetVersionInfo(pp);
 
             if (fcv.ProductVersion != null && fcv.ProductVersion.Contains("dev"))
             {

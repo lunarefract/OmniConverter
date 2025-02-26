@@ -19,6 +19,9 @@ namespace OmniConverter
         }
 
         [JsonProperty]
+        public int MaxVoices = 2048;
+
+        [JsonProperty]
         public double Volume = 1.0;
 
         [JsonProperty]
@@ -51,9 +54,6 @@ namespace OmniConverter
     [JsonObject]
     public class BASSSettings : ICloneable
     {
-        [JsonProperty]
-        public int MaxVoices = 2048;
-
         [JsonProperty]
         public bool DisableEffects = true;
 

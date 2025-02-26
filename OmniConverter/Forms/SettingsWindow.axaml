@@ -24,6 +24,7 @@
 								<ComboBox Name="SelectedRenderer" Width="180" SelectedIndex="0" MaxDropDownHeight="200" SelectionChanged="AudioRendererChanged" >
 									<ComboBoxItem>BASS</ComboBoxItem>
 									<ComboBoxItem>XSynth</ComboBoxItem>
+									<ComboBoxItem>FluidSynth</ComboBoxItem>
 								</ComboBox>
 							</StackPanel>
 						</Grid>

@@ -62,7 +62,7 @@ public partial class SettingsWindow : Window
         XSynth_ThreadingSelection.SelectedIndex = ((int)Program.Settings.XSynth.Threading)
             .LimitToRange(XSynthSettings.ThreadingType.None, XSynthSettings.ThreadingType.Max);
 
-        BASS_MaxVoices.Value = Program.Settings.BASS.MaxVoices;
+        BASS_MaxVoices.Value = Program.Settings.Synth.MaxVoices;
         XSynth_MaxLayers.Value = Program.Settings.XSynth.MaxLayers;
         BASS_DisableFX.IsChecked = Program.Settings.BASS.DisableEffects;
         BASS_NoteOff1.IsChecked = Program.Settings.BASS.NoteOff1;
@@ -163,22 +163,14 @@ public partial class SettingsWindow : Window
     {
         if (AudioCodec != null)
         {
-            AudioBitrate.IsEnabled = AudioCodec.SelectedIndex > 1;
+            var audCodec = (AudioCodecType)AudioCodec.SelectedIndex;
+            var canHandleFP = audCodec.CanHandleFloatingPoint();
 
-            switch ((AudioCodecType)AudioCodec.SelectedIndex)
-            {
-                case AudioCodecType.LAME:
-                    ForceLimitAudio = true;
-                    AudioLimiter.IsChecked = ForceLimitAudio;
-                    break;
+            ForceLimitAudio = !canHandleFP;
 
-                default:
-                    ForceLimitAudio = false;
-                    AudioLimiter.IsChecked = Program.Settings.Synth.AudioLimiter;
-                    break;
-            }
-
-            AudioLimiter.IsEnabled = !ForceLimitAudio;
+            AudioBitrate.IsEnabled = audCodec.OffersBitrateSetting();
+            AudioLimiter.IsChecked = canHandleFP ? Program.Settings.Synth.AudioLimiter : true;
+            AudioLimiter.IsEnabled = canHandleFP;
         }
     }
 
@@ -202,7 +194,7 @@ public partial class SettingsWindow : Window
             switch ((EngineID)SelectedRenderer.SelectedIndex)
             {
                 case EngineID.BASS:
-                    BASS_MaxVoices.Value = Program.Settings.BASS.MaxVoices;
+                    BASS_MaxVoices.Value = Program.Settings.Synth.MaxVoices;
 
                     BASSSettingsPanel.IsVisible = true;
                     XSynthSettingsPanel.IsVisible = false;
@@ -214,6 +206,7 @@ public partial class SettingsWindow : Window
 
                     BASSSettingsPanel.IsVisible = false;
                     XSynthSettingsPanel.IsVisible = true;
+
                     break;
 
                 default:
@@ -331,7 +324,7 @@ public partial class SettingsWindow : Window
             Program.Settings.Synth.SampleRate = Convert.ToInt32(((ComboBoxItem)item).Content);
 
         if (BASS_MaxVoices.Value != null)
-            Program.Settings.BASS.MaxVoices = (int)BASS_MaxVoices.Value;
+            Program.Settings.Synth.MaxVoices = (int)BASS_MaxVoices.Value;
         if (XSynth_MaxLayers.Value != null)
             Program.Settings.XSynth.MaxLayers = (ulong)XSynth_MaxLayers.Value;
 

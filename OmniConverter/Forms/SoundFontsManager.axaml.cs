@@ -16,11 +16,15 @@ public partial class SoundFontsManager : Window
     {
         InitializeComponent();
 
-        SoundFontListView.ItemsSource = Program.SoundFontsManager.GetSoundFontList();
-
         AddHandler(DragDrop.DropEvent, FileDropInit);
         AddHandler(DragDrop.DragEnterEvent, FileDropEnter);
         // AddHandler(DragDrop.DragLeaveEvent, FileDropLeave);
+
+        try
+        {
+            SoundFontListView.ItemsSource = Program.SoundFontsManager.GetSoundFontList();
+        }
+        catch { }
 
         switch (Program.Settings.Renderer)
         {

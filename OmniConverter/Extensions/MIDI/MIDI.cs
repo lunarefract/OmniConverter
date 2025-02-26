@@ -62,6 +62,7 @@ namespace OmniConverter
         public string HumanReadableSize { get => MiscFunctions.BytesToHumanReadableSize(_fileSize); }
         public MidiFile? LoadedFile { get => _loadedFile; }
         public ulong[] EventCounts { get => _eventCounts; }
+        public double PPQ { get => _ppqn; }
         public ulong TotalEventCount {
             get
             {
@@ -85,8 +86,9 @@ namespace OmniConverter
         private long _noteCount;
         private ulong _fileSize;
         private ulong[] _eventCounts;
+        private double _ppqn;
 
-        public MIDI(MidiFile? loadedFile, IEnumerable<MIDIEvent> metaEvent, string name, long id, string path, TimeSpan timeLength, int tracks, long noteCount, ulong fileSize, ulong[] eventCounts)
+        public MIDI(MidiFile? loadedFile, IEnumerable<MIDIEvent> metaEvent, string name, long id, string path, TimeSpan timeLength, int tracks, long noteCount, ulong fileSize, ulong[] eventCounts, double ppqn)
         {
             _loadedFile = loadedFile;
             _metaEvent = metaEvent;
@@ -98,6 +100,7 @@ namespace OmniConverter
             _noteCount = noteCount;
             _fileSize = fileSize;
             _eventCounts = eventCounts;
+            _ppqn = ppqn;
         }
 
         public MIDI(string test)
@@ -227,7 +230,7 @@ namespace OmniConverter
                     seconds += e.DeltaTime;
                 }
 
-                return new MIDI(file, mergedMetaEvents, name, id, filepath, TimeSpan.FromSeconds(seconds), file.TrackCount, noteCount, fileSize, eventCounts);
+                return new MIDI(file, mergedMetaEvents, name, id, filepath, TimeSpan.FromSeconds(seconds), file.TrackCount, noteCount, fileSize, eventCounts, file.PPQ);
             }
             catch (OperationCanceledException) { }
             catch (Exception) { }

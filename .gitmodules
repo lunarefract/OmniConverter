@@ -7,3 +7,6 @@ url=https://github.com/KaleidonKep99/ManagedBass
 [submodule "MIDIModificationFramework"]
 	path = MIDIModificationFramework
 	url = https://github.com/KaleidonKep99/MIDIModificationFramework
+[submodule "nfluidsynth"]
+	path = nfluidsynth
+	url = https://github.com/KaleidonKep99/nfluidsynth

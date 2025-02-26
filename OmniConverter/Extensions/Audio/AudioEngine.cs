@@ -8,7 +8,8 @@ namespace OmniConverter
         Unknown = -1,
         BASS = 0,
         XSynth = 1,
-        MAX = XSynth
+        FluidSynth = 2,
+        MAX = FluidSynth
     }
 
     public abstract class AudioEngine : IDisposable

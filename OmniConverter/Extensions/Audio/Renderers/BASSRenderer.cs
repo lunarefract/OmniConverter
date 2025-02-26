@@ -59,7 +59,7 @@ namespace OmniConverter
                         .LimitToRange((int)GlobalSynthSettings.InterpolationType.None,
                                       (int)GlobalSynthSettings.InterpolationType.Max) - 1;
 
-                    Bass.Configure(Configuration.MidiVoices, CachedSettings.BASS.MaxVoices);
+                    Bass.Configure(Configuration.MidiVoices, CachedSettings.Synth.MaxVoices);
                     Bass.Configure(Configuration.SRCQuality, interp);
                     Bass.Configure(Configuration.SampleSRCQuality, interp);
 
