@@ -554,10 +554,11 @@ namespace OmniConverter
 
                             var midiTrack = midiData.ElementAt(track);
 
-                            var notes = midiTrack.Where(x => x is NoteOnEvent);
-
-                            if (notes.Count() < 2)
+                            if (!midiTrack.Any(x => x is NoteOnEvent))
+                            {
+                                _validator.AddTrack();
                                 return;
+                            }
 
                             Task cvThread;
                             string fallbackFile = string.Empty;
