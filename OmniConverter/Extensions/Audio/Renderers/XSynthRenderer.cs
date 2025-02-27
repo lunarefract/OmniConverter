@@ -330,7 +330,6 @@ namespace OmniConverter
     public class XSynthRenderer : MIDIRenderer
     {
         public XSynth_ChannelGroup? handle { get; private set; } = null;
-        private long length = 0;
         private ulong sfCount = 0;
         private nint sfArray = nint.Zero;
         private XSynthEngine reference;
@@ -399,7 +398,7 @@ namespace OmniConverter
                 }
             }
 
-            length += count;
+            streamLength += count;
             return count;
         }
 
@@ -492,17 +491,6 @@ namespace OmniConverter
 
             ChannelGroup_SendAudioEventAll((XSynth_ChannelGroup)handle, AudioEvent.AllNotesOff, 0);
             ChannelGroup_SendAudioEventAll((XSynth_ChannelGroup)handle, AudioEvent.ResetControl, 0);
-        }
-
-        public override long Position
-        {
-            get { return length; }
-            set { throw new NotSupportedException("Can't set position."); }
-        }
-
-        public override long Length
-        {
-            get { return length; }
         }
 
         protected override void Dispose(bool disposing)

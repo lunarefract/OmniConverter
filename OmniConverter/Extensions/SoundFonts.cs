@@ -78,9 +78,9 @@ namespace OmniConverter
 
         public void SetPresetSettings(short SP, short SB, short DP, short DB, short DBLSB, bool E)
         {
-            SourcePreset = IsSFZ() && SP < 0 ? (short)0: SP;
-            SourceBank = IsSFZ() && SB < 0 ? (short)0 : SB;
-            DestinationPreset = IsSFZ() && DP < 0 ? (short)0 : DP;
+            SourcePreset = (IsSFZ() && SP < 0) ? (short)0: SP;
+            SourceBank = (IsSFZ() && SB < 0) ? (short)0 : SB;
+            DestinationPreset = (IsSFZ() && DP < 0) ? (short)0 : DP;
             DestinationBank = DB;
             DestinationBankLSB = DBLSB;
             Enabled = E;

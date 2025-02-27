@@ -149,7 +149,7 @@ public partial class SoundFontsManager : Window
             var item = (SoundFont)SoundFontListView.Items[index];
 
             item.SetPresetSettings(
-                     (short)SourceBank.Value, (short)SourceBank.Value,
+                     (short)SourcePreset.Value, (short)SourceBank.Value,
                      (short)DestinationPreset.Value, (short)DestinationBank.Value, (short)DestinationBankLSB.Value,
                      (bool)Enabled.IsChecked);
 

@@ -37,6 +37,7 @@ namespace OmniConverter
     public abstract class MIDIRenderer : ISampleSource
     {
         protected readonly object Lock = new object();
+        protected long streamLength = 0;
 
         protected double Volume { get; set; }
         public string UniqueID { get; protected set; } = IDGenerator.GetID();
@@ -55,8 +56,8 @@ namespace OmniConverter
         public abstract unsafe int Read(float[] buffer, int offset, long delta, int count);
         public abstract void RefreshInfo();
         public abstract void SendEndEvent();
-        public abstract long Position { get; set; }
-        public abstract long Length { get; }
+        public virtual long Position { get { return streamLength; } set { } }
+        public virtual long Length { get { return streamLength; } }
 
         public int Read(float[] buffer, int offset, int count) => Read(buffer, offset, 0, count);
         public void Dispose()

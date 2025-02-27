@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using CSCore;
+using Newtonsoft.Json;
 using System;
 using System.Collections.ObjectModel;
 
@@ -248,6 +249,56 @@ namespace OmniConverter
 
         [JsonProperty("SoundFonts")]
         public ObservableCollection<SoundFont> SoundFontsList = [];
+
+        private AudioEngine? _cachedEngine = null;
+        private WaveFormat? _waveFormat = null;
+
+        public WaveFormat? WaveFormat { get { return _waveFormat; } }
+
+        public AudioEngine? GetAudioEngine()
+        {
+            _waveFormat = new WaveFormat(Synth.SampleRate, 32, 2, AudioEncoding.IeeeFloat);
+
+            switch (Renderer)
+            {
+                case EngineID.XSynth:
+                    _cachedEngine = new XSynthEngine(_waveFormat, this);
+                    break;
+
+                case EngineID.FluidSynth:
+                    _cachedEngine = new FluidSynthEngine(_waveFormat, this);
+                    break;
+
+                case EngineID.BASS:
+                    _cachedEngine = new BASSEngine(_waveFormat, this);
+                    break;
+
+                default:
+                    break;
+            }
+
+            return _cachedEngine;
+        }
+
+        public MIDIRenderer? GetRenderer()
+        {
+            switch (_cachedEngine)
+            {
+                case XSynthEngine xsynth:
+                    return new XSynthRenderer(xsynth);
+
+                case BASSEngine bass:
+                    return new BASSRenderer(bass);
+
+                case FluidSynthEngine fluidsynth:
+                    return new FluidSynthRenderer(fluidsynth);
+
+                default:
+                    break;
+            }
+
+            return null;
+        }
 
         public object Clone()
         {

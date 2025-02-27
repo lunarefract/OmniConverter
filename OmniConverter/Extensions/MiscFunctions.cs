@@ -1,4 +1,5 @@
-﻿using Avalonia.Platform;
+﻿using Avalonia.Media;
+using Avalonia.Platform;
 using ManagedBass;
 using System;
 using System.Diagnostics;
@@ -17,29 +18,26 @@ namespace OmniConverter
             Error
         }
 
-        private static ulong PowerOf(int pw)
-        {
-            return (ulong)Math.Pow(2, 10 * pw);
-        }
-
         public static string BytesToHumanReadableSize(ulong length)
         {
-            string size;
-            try
+            if (length > 0)
             {
-                if (length >= PowerOf(8)) return (length / PowerOf(8)).ToString("0.00 YiB");
-                else if (length >= PowerOf(7)) return (length / PowerOf(7)).ToString("0.00 ZiB");
-                else if (length >= PowerOf(6)) return (length / PowerOf(6)).ToString("0.00 EiB");
-                else if (length >= PowerOf(5)) return (length / PowerOf(5)).ToString("0.00 PiB");
-                else if (length >= PowerOf(4)) return (length / PowerOf(4)).ToString("0.00 TiB");
-                else if (length >= PowerOf(3)) return (length / PowerOf(3)).ToString("0.00 GiB");
-                else if (length >= PowerOf(2)) return (length / PowerOf(2)).ToString("0.00 MiB");
-                else if (length >= PowerOf(1)) return (length / PowerOf(1)).ToString("0.00 KiB");
-                else size = length.ToString("0.00 B");
-            }
-            catch { size = "-"; }
+                string[] kinds = { "B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB", "???" };
+                ulong fLength = length;
+                int powerUnit = 0;
 
-            if (length > 0) return size;
+                while (fLength >= 1000 && powerUnit < kinds.Length - 1)
+                {
+                    fLength = fLength / 1000;
+                    powerUnit++;
+
+                    if (powerUnit >= kinds.Length)
+                        return "Supernova";
+                }
+
+                return $"{fLength:0.##} {kinds[powerUnit]}";
+
+            }
             else return "Black hole";
         }
 

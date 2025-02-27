@@ -7,6 +7,7 @@ using Avalonia.Threading;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -214,6 +215,23 @@ namespace OmniConverter
             }
 
             CheckWatermark();
+        }
+
+        private void MIDILocation(object? sender, RoutedEventArgs e)
+        {
+            if (MIDIListView.SelectedItems != null && MIDIListView.SelectedItems.Count > 0)
+            {
+                // Let's copy the references to an array
+                MIDI[] list = new MIDI[MIDIListView.SelectedItems.Count];
+                MIDIListView.SelectedItems.CopyTo(list, 0);
+
+                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    Process.Start("explorer.exe", $"/select,\"{list[0].Path}\"");
+                }
+                else MessageBox.Show(this, "Unsupported operation in current operating system.", "OmniConverter - ERROR",
+                    MsBox.Avalonia.Enums.ButtonEnum.Ok, MsBox.Avalonia.Enums.Icon.Error);
+            }
         }
 
         private void CloseConverter(object? sender, RoutedEventArgs e)

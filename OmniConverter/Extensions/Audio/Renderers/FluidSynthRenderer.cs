@@ -1,20 +1,18 @@
-﻿using System;
+﻿using CSCore.DirectSound;
+using NFluidsynth;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
-using Avalonia.Media;
-using NFluidsynth;
 
 namespace OmniConverter
 {
     public class FluidSynthEngine : AudioEngine
     {
-        private List<NFluidsynth.SoundFont> _managedSfArray = [];
         private NFluidsynth.Settings _fluidSynthSettings;
         private Settings _cachedSettings;
+
+        public readonly object SFLock = new object();
 
         public unsafe FluidSynthEngine(CSCore.WaveFormat waveFormat, Settings settings) : base(waveFormat, settings, false)
         {
@@ -59,11 +57,16 @@ namespace OmniConverter
     public class FluidSynthRenderer : MIDIRenderer
     {
         public Synth? handle { get; private set; } = null;
-        private long length = 0;
-        private ulong sfCount = 0;
-        private List<uint> _managedSfArray = [];
+        private bool noMoreData = false;
 
-        private float[]? outL = null, outR = null;
+        private List<int> _managedSfArray = [];
+
+        private float[]? bufOutL = null, bufOutR = null;
+        private unsafe float* pbufOutL = null, pbufOutR = null;
+        private unsafe float*[]? ptrToBufs = null;
+        private unsafe float** bufPtr = null;
+        private GCHandle? gcHandleBufL = null, gcHandleBufR = null, gcHandleBufPtr = null;
+
         private FluidSynthEngine reference;
 
         public FluidSynthRenderer(FluidSynthEngine fluidsynth) : base(fluidsynth.WaveFormat, fluidsynth.CachedSettings.Synth.Volume, false)
@@ -81,18 +84,34 @@ namespace OmniConverter
             handle = new(reference.GetFluidSynthSettings());
             var tmp = reference.GetConverterSettings();
 
-            foreach (var sf in tmp.SoundFontsList)
-            {
-                var sfhandle = handle.LoadSoundFont(sf.SoundFontPath, true);
+            handle.Gain = (float)tmp.Synth.Volume;
 
-                if (sfhandle != 0)
-                    _managedSfArray.Add(sfhandle);
+            // FluidSynth "thread-safe API" moment
+            lock (reference.SFLock)
+            {
+                foreach (var sf in tmp.SoundFontsList)
+                {
+                    var sfhandle = handle.LoadSoundFont(sf.SoundFontPath, true);
+
+                    if (sfhandle != 0)
+                    {
+                        if (sf.SourceBank != -1)
+                            handle.SetBankOffset(sfhandle, sf.SourceBank);
+
+                        if (sf.SourcePreset != -1)
+                        {
+                            for (int i = 0; i < 16; i++)
+                                handle.ProgramSelect(i, sfhandle, 0, (uint)sf.SourcePreset);
+                        }
+
+                        _managedSfArray.Add(sfhandle);
+                    }
+                }
             }
-            
+
             if (_managedSfArray.Count > 0)
             {
                 Debug.PrintToConsole(Debug.LogType.Message, $"{UniqueID} - Stream is open.");
-
                 Initialized = true;
             }
         }
@@ -107,48 +126,44 @@ namespace OmniConverter
             if (handle == null)
                 return 0;
 
-            if (outL == null)
-                outL = new float[count / 2];
+            if (bufOutL == null || bufOutR == null)
+            {
+                bufOutL = new float[buffer.Length / 2];
+                bufOutR = new float[buffer.Length / 2];
 
-            if (outR == null)
-                outR = new float[count / 2];
+                gcHandleBufR = GCHandle.Alloc(bufOutL, GCHandleType.Pinned);
+                gcHandleBufL = GCHandle.Alloc(bufOutR, GCHandleType.Pinned);
+
+                pbufOutL = (float*)gcHandleBufR.Value.AddrOfPinnedObject().ToPointer();
+                pbufOutR = (float*)gcHandleBufL.Value.AddrOfPinnedObject().ToPointer();
+
+                ptrToBufs = [pbufOutL, pbufOutR];
+
+                gcHandleBufPtr = GCHandle.Alloc(ptrToBufs, GCHandleType.Pinned);
+                bufPtr = (float**)gcHandleBufPtr.Value.AddrOfPinnedObject().ToPointer();
+            }
+
+            // Zero out the buffer
+            Array.Clear(bufOutL, 0, bufOutL.Length);
+            Array.Clear(bufOutR, 0, bufOutR.Length);
 
             lock (Lock)
             {
                 fixed (float* buff = buffer)
                 {
-                    fixed (float* toutL = outL)
+                    var offsetBuff = buff + offset;
+
+                    handle.Process(count / 2, 2, bufPtr, 2, bufPtr);
+
+                    for (int i = 0; i < count / 2; i++)
                     {
-                        fixed (float* toutR = outR)
-                        {
-                            var offsetBuff = buff + offset;
-
-                            // Zero out the buffer
-                            for (int i = 0; i < count / 2; i++)
-                            {
-                                toutL[i] = 0.0f;
-                                toutR[i] = 0.0f;
-                            }
-
-                            float*[] whatisthis = { toutL, toutR };
-
-                            fixed (float** hell = whatisthis)
-                                handle.Process(count / 2, 2, hell, 2, hell);
-
-                            // Copy it in a way that makes F*****G SENSE,
-                            // CHRIST FLUIDSYNTH, CAN'T YOU JUST BE F*****G NORMAL?????
-                            for (int i = 0; i < count / 2; i++)
-                            {
-                                offsetBuff[i * 2] = toutL[i];
-                                offsetBuff[i * 2 + 1] = toutR[i];
-                            }
-                        }
-
+                        offsetBuff[i * 2] = bufOutL[i];
+                        offsetBuff[i * 2 + 1] = bufOutR[i];
                     }
                 }           
             }
 
-            length += count;
+            streamLength += count;
             return count;
         }
 
@@ -162,7 +177,15 @@ namespace OmniConverter
 
         public override bool SendCustomFXEvents(int channel, short reverb, short chorus)
         {
-            return true;
+            if (handle != null)
+            {
+                handle?.CC(channel, 0x5B, reverb);
+                handle?.CC(channel, 0x5D, reverb);
+
+                return true;
+            }
+
+            return false;
         }
 
         public override void SendEvent(byte[] data)
@@ -258,7 +281,7 @@ namespace OmniConverter
             if (handle == null)
                 return;
 
-            ActiveVoices = (ulong)handle.ActiveVoiceCount;
+            ActiveVoices = noMoreData ? 0 : (ulong)handle.ActiveVoiceCount;
         }
 
         public override void SendEndEvent()
@@ -267,20 +290,15 @@ namespace OmniConverter
                 return;
 
             for (int i = 0; i < 16; i++)
-                handle.AllNotesOff(i);
+            {
+                handle.CC(i, 0x40, 0);
+                handle.CC(i, 0x42, 0);
+                handle.CC(i, 0x7B, 0);
+            }
 
-            SystemReset();
-        }
+            handle.AllNotesOff(-1);
 
-        public override long Position
-        {
-            get { return length; }
-            set { throw new NotSupportedException("Can't set position."); }
-        }
-
-        public override long Length
-        {
-            get { return length; }
+            noMoreData = true;
         }
 
         protected override void Dispose(bool disposing)
@@ -288,14 +306,25 @@ namespace OmniConverter
             if (Disposed)
                 return;
 
-            if (_managedSfArray.Count > 0)
-            {
-                for (int i = 0; i < _managedSfArray.Count; i++)
-                    handle?.UnloadSoundFont(_managedSfArray[i], false);
-            }
+            if (gcHandleBufL != null)
+                gcHandleBufL.Value.Free();
+
+            if (gcHandleBufR != null)
+                gcHandleBufR.Value.Free();
+
+            if (gcHandleBufPtr != null)
+                gcHandleBufPtr.Value.Free();
 
             if (handle != null)
-                handle.Dispose();
+            {
+                if (_managedSfArray.Count > 0)
+                {
+                    for (int i = 0; i < _managedSfArray.Count; i++)
+                        handle.UnloadSoundFont(_managedSfArray[i], false);
+
+                    handle.Dispose();
+                }
+            }
 
             UniqueID = string.Empty;
             CanSeek = false;
