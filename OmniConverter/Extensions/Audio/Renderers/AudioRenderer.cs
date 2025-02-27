@@ -46,13 +46,13 @@ namespace OmniConverter
     {
         protected bool _disposed = false;
         protected bool _init = false;
-        protected WaveFormat _waveFormat = new(48000, 32, 2);
+        protected WaveFormat _waveFormat;
         protected Settings _cachedSettings;
 
         public AudioEngine(Settings settings, bool defaultInit = true)
         {
             _cachedSettings = settings;
-            _waveFormat = new(settings.Synth.SampleRate, 32, 2);
+            _waveFormat = new(settings.Synth.SampleRate, 32, 2, AudioEncoding.IeeeFloat);
             _init = defaultInit;
         }
 
@@ -77,8 +77,8 @@ namespace OmniConverter
 
         public string UniqueID { get; protected set; } = IDGenerator.GetID();
         public bool CanSeek { get; protected set; } = false;
-        public WaveFormat WaveFormat { get; protected set; } = new(48000, 32, 2);
-        public bool Initialized { get; protected set; } = false;
+        public WaveFormat WaveFormat { get; protected set; }
+        public bool Initialized { get; protected set; }
         public bool Disposed { get; protected set; } = false;
         public ulong ActiveVoices { get; protected set; } = 0;
         public float RenderingTime { get; protected set; } = 0.0f;

@@ -250,39 +250,34 @@ namespace OmniConverter
         [JsonProperty("SoundFonts")]
         public ObservableCollection<SoundFont> SoundFontsList = [];
 
-        private AudioEngine? _cachedEngine = null;
-        private WaveFormat? _waveFormat = null;
-
-        public WaveFormat? WaveFormat { get { return _waveFormat; } }
-
         public AudioEngine? GetAudioEngine()
         {
-            _waveFormat = new WaveFormat(Synth.SampleRate, 32, 2, AudioEncoding.IeeeFloat);
+            AudioEngine? audioEngine = null;
 
             switch (Renderer)
             {
                 case EngineID.XSynth:
-                    _cachedEngine = new XSynthEngine(this);
+                    audioEngine = new XSynthEngine(this);
                     break;
 
                 case EngineID.FluidSynth:
-                    _cachedEngine = new FluidSynthEngine(this);
+                    audioEngine = new FluidSynthEngine(this);
                     break;
 
                 case EngineID.BASS:
-                    _cachedEngine = new BASSEngine(this);
+                    audioEngine = new BASSEngine(this);
                     break;
 
                 default:
                     break;
             }
 
-            return _cachedEngine;
+            return audioEngine;
         }
 
-        public AudioRenderer? GetRenderer()
+        public AudioRenderer? GetRenderer(AudioEngine? audioEngine)
         {
-            switch (_cachedEngine)
+            switch (audioEngine)
             {
                 case XSynthEngine xsynth:
                     return new XSynthRenderer(xsynth);

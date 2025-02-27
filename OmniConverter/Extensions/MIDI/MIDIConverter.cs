@@ -32,8 +32,9 @@ namespace OmniConverter
             Crash
         }
 
-        private Stopwatch _convElapsedTime = new Stopwatch();
         private AudioEngine? _audioRenderer;
+
+        private Stopwatch _convElapsedTime = new Stopwatch();
         private MIDIValidator _validator;
         private CancellationTokenSource _cancToken;
         private ParallelOptions _parallelOptions;
@@ -341,6 +342,8 @@ namespace OmniConverter
                         throw new OperationCanceledException();
 
                     var midi = _midis[nMidi];
+                    var waveFormat = _audioRenderer.GetWaveFormat();
+
                     midi.EnablePooling();
 
                     // Begin conversion
@@ -369,7 +372,7 @@ namespace OmniConverter
 
                     if (loaded)
                     {
-                        using (var msm = new MultiStreamMerger(_cachedSettings.WaveFormat))
+                        using (var msm = new MultiStreamMerger(waveFormat))
                         {
                             using (var eventsProcesser = new EventsProcesser(_audioRenderer, evs, midi))
                             {
@@ -377,7 +380,7 @@ namespace OmniConverter
 
                                 Dispatcher.UIThread.Post(() => midiPanel = new TaskStatus(midi.Name, _panelRef, eventsProcesser));
 
-                                var cvThread = Task.Run(() => eventsProcesser.Process(msm.GetWriter(), _cachedSettings.WaveFormat, _cancToken.Token, f => _validator.AddEvent()));
+                                var cvThread = Task.Run(() => eventsProcesser.Process(msm.GetWriter(), _cancToken.Token, f => _validator.AddEvent()));
 
                                 while (!cvThread.IsCompleted)
                                 {
@@ -413,16 +416,16 @@ namespace OmniConverter
 
                             IWaveSource MStream;
                             Limiter BAC;
-                            if (_audLimiter && _cachedSettings.WaveFormat.BitsPerSample == 32)
+                            if (_audLimiter && waveFormat.BitsPerSample == 32)
                             {
                                 Debug.PrintToConsole(Debug.LogType.Message, "LoudMax enabled.");
                                 BAC = new Limiter(msm, 0.1);
-                                MStream = BAC.ToWaveSource(_cachedSettings.WaveFormat.BitsPerSample);
+                                MStream = BAC.ToWaveSource(waveFormat.BitsPerSample);
                             }
-                            else MStream = msm.ToWaveSource(_cachedSettings.WaveFormat.BitsPerSample);
+                            else MStream = msm.ToWaveSource(waveFormat.BitsPerSample);
 
                             FileStream FOpen = File.Open(outputFile1, FileMode.Create);
-                            WaveWriter FDestination = new WaveWriter(FOpen, _cachedSettings.WaveFormat);
+                            WaveWriter FDestination = new WaveWriter(FOpen, waveFormat);
                             Debug.PrintToConsole(Debug.LogType.Message, "Output file is open.");
 
                             int FRead = 0;
@@ -511,11 +514,12 @@ namespace OmniConverter
                 string folder = _outputPath;
 
                 var midiData = midi.GetIterateTracksTimeBased();
+                var waveFormat = _audioRenderer.GetWaveFormat();
 
                 _validator.SetTotalMIDIEvents(midi.TotalEventCount);
                 _validator.SetTotalTracks(midiData.Count());
 
-                using (MultiStreamMerger msm = new(_cachedSettings.WaveFormat))
+                using (MultiStreamMerger msm = new(waveFormat))
                 {
                     // Per track!
                     if (_separateTrackFiles)
@@ -556,7 +560,7 @@ namespace OmniConverter
 
                             ISampleWriter sampleWriter;
 
-                            using (MultiStreamMerger trackMsm = new(_cachedSettings.WaveFormat))
+                            using (MultiStreamMerger trackMsm = new(waveFormat))
                             {
                                 Debug.PrintToConsole(Debug.LogType.Message, $"ConvertWorker => T{track}, {midi.Length.TotalSeconds}");
 
@@ -592,7 +596,7 @@ namespace OmniConverter
                                 {
                                     Dispatcher.UIThread.Post(() => trackPanel = new TaskStatus($"Track {track}", _panelRef, eventsProcesser));
 
-                                    cvThread = Task.Run(() => eventsProcesser.Process(sampleWriter, _cachedSettings.WaveFormat, _cancToken.Token, f =>
+                                    cvThread = Task.Run(() => eventsProcesser.Process(sampleWriter, _cancToken.Token, f =>
                                     {
                                         _validator.AddEvent();
                                         return _validator.AddMIDIEvent();
@@ -630,17 +634,17 @@ namespace OmniConverter
                                     trackMsm.Position = 0;
 
                                     IWaveSource exportSource;
-                                    if (_audLimiter && _cachedSettings.WaveFormat.BitsPerSample == 32)
+                                    if (_audLimiter && waveFormat.BitsPerSample == 32)
                                     {
                                         Debug.PrintToConsole(Debug.LogType.Message, "LoudMax enabled.");
                                         var BAC = new Limiter(trackMsm, 0.1);
-                                        exportSource = BAC.ToWaveSource(_cachedSettings.WaveFormat.BitsPerSample);
+                                        exportSource = BAC.ToWaveSource(waveFormat.BitsPerSample);
                                     }
-                                    else exportSource = trackMsm.ToWaveSource(_cachedSettings.WaveFormat.BitsPerSample);
+                                    else exportSource = trackMsm.ToWaveSource(waveFormat.BitsPerSample);
 
                                     using (var targetFile = File.Open(outputFile1, FileMode.Create, FileAccess.Write))
                                     {
-                                        WaveWriter fileWriter = new WaveWriter(targetFile, _cachedSettings.WaveFormat);
+                                        WaveWriter fileWriter = new WaveWriter(targetFile, waveFormat);
                                         Debug.PrintToConsole(Debug.LogType.Message, "Output file is open.");
 
                                         int bufRead = 0;
@@ -712,17 +716,17 @@ namespace OmniConverter
 
                             // Prepare wave source
                             IWaveSource? MStream = null;
-                            if (_audLimiter && _cachedSettings.WaveFormat.BitsPerSample == 32)
+                            if (_audLimiter && waveFormat.BitsPerSample == 32)
                             {
                                 Debug.PrintToConsole(Debug.LogType.Message, "LoudMax enabled.");
                                 var BAC = new Limiter(msm, 0.1);
-                                MStream = BAC.ToWaveSource(_cachedSettings.WaveFormat.BitsPerSample);
+                                MStream = BAC.ToWaveSource(waveFormat.BitsPerSample);
                             }
-                            else MStream = msm.ToWaveSource(_cachedSettings.WaveFormat.BitsPerSample);
+                            else MStream = msm.ToWaveSource(waveFormat.BitsPerSample);
 
                             using (var targetFile = File.Open(outputFile1, FileMode.Create, FileAccess.Write))
                             {
-                                WaveWriter fileWriter = new WaveWriter(targetFile, _cachedSettings.WaveFormat);
+                                WaveWriter fileWriter = new WaveWriter(targetFile, waveFormat);
                                 Debug.PrintToConsole(Debug.LogType.Message, "Output file is open.");
 
                                 int FRead = 0;
@@ -863,7 +867,7 @@ namespace OmniConverter
             _disposed = true;
         }
 
-        public void Process(ISampleWriter output, WaveFormat waveFormat, CancellationToken cancToken, Func<ulong, ulong>? f = null)
+        public void Process(ISampleWriter output, CancellationToken cancToken, Func<ulong, ulong>? f = null)
         {
             var r = new Random();
 
@@ -880,12 +884,13 @@ namespace OmniConverter
 
             try
             {
-                _midiRenderer = _cachedSettings.GetRenderer();
+                _midiRenderer = _cachedSettings.GetRenderer(_audioRenderer);
 
                 if (_midiRenderer != null)
                 {
                     // _midiRenderer.SystemReset();
 
+                    var waveFormat = _midiRenderer.WaveFormat;
                     float[] buffer = new float[256 * waveFormat.BlockAlign];
                     long prevWriteTime = 0;
                     double deltaTime = 0;

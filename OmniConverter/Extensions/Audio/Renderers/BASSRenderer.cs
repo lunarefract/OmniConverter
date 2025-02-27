@@ -45,7 +45,7 @@ namespace OmniConverter
                                        -++.                             
             */
 
-            if (Bass.Init(Bass.NoSoundDevice, _cachedSettings.WaveFormat.SampleRate, DeviceInitFlags.Default))
+            if (Bass.Init(Bass.NoSoundDevice, _waveFormat.SampleRate, DeviceInitFlags.Default))
             {
                 _bassArray = InitializeSoundFonts();
 
