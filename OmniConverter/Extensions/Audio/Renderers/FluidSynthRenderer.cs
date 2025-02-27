@@ -57,6 +57,7 @@ namespace OmniConverter
     {
         public Synth? handle { get; private set; } = null;
         private bool noMoreData = false;
+        private bool noFx = false;
 
         private List<int> _managedSfArray = [];
 
@@ -107,6 +108,8 @@ namespace OmniConverter
 
             handle.Gain = (float)tmp.Synth.Volume;
             handle.SetInterpolationMethod(-1, interp);
+
+            noFx = _cachedSettings.Synth.DisableEffects;
 
             // FluidSynth "thread-safe API" moment
             lock (reference.SFLock)
@@ -175,7 +178,7 @@ namespace OmniConverter
                 {
                     var offsetBuff = buff + offset;
 
-                    handle.Process(count / 2, 2, bufPtr, 2, bufPtr);
+                    handle.Process(count / 2, noFx ? 0 : 2, noFx ? null : bufPtr, 2, bufPtr);
 
                     for (int i = 0; i < count / 2; i++)
                     {

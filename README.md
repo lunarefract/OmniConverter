@@ -19,6 +19,8 @@ FFMpegCore: https://github.com/rosenbjerg/FFMpegCore
 <br />
 ManagedBass: https://github.com/ManagedBass/ManagedBass
 <br />
+NFluidSynth (This project uses [my fork](https://github.com/KaleidonKep99/nfluidsynth)): https://github.com/atsushieno/nfluidsynth
+<br />
 MIDIModificationFramework: https://github.com/arduano/MIDIModificationFramework
 <br />
 XSynth: https://github.com/BlackMIDIDevs/xsynth
@@ -26,3 +28,5 @@ XSynth: https://github.com/BlackMIDIDevs/xsynth
 FLParser (This project uses [Kaydax's](https://github.com/Kaydax/FLParser) fork): https://github.com/monadgroup/FLParser
 <br />
 Un4seen's BASS libraries: https://www.un4seen.com/bass.html
+<br />
+FluidSynth: https://www.fluidsynth.org

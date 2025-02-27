@@ -225,7 +225,7 @@ namespace OmniConverter
                 MIDI[] list = new MIDI[MIDIListView.SelectedItems.Count];
                 MIDIListView.SelectedItems.CopyTo(list, 0);
 
-                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     Process.Start("explorer.exe", $"/select,\"{list[0].Path}\"");
                 }
