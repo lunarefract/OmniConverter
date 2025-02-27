@@ -1,11 +1,12 @@
 ﻿using Avalonia.Platform.Storage;
 using Newtonsoft.Json;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 
 namespace OmniConverter
 {
-    public class SoundFont
+    public class SoundFont : INotifyPropertyChanged
     {
         [JsonProperty("Path")]
         public string SoundFontPath { get; private set; }
@@ -46,6 +47,8 @@ namespace OmniConverter
         [JsonProperty]
         public bool NoRampIn { get; private set; }
 
+        public string SoundFontDisplayName => $"{(Enabled ? "" : "[OFF] ")}{SoundFontPath}";
+
         public SoundFont()
         {
             SoundFontPath = string.Empty;
@@ -70,6 +73,9 @@ namespace OmniConverter
             SetPresetSettings(SP, SB, DP, DB, DBLSB, E);
         }
 
+        public event PropertyChangedEventHandler? PropertyChanged;
+        private void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
         public void ChangePath(string SFP)
         {
             SoundFontPath = SFP;
@@ -78,12 +84,17 @@ namespace OmniConverter
 
         public void SetPresetSettings(short SP, short SB, short DP, short DB, short DBLSB, bool E)
         {
+            bool enabledChanged = Enabled != E;
+
             SourcePreset = (IsSFZ() && SP < 0) ? (short)0: SP;
             SourceBank = (IsSFZ() && SB < 0) ? (short)0 : SB;
             DestinationPreset = (IsSFZ() && DP < 0) ? (short)0 : DP;
             DestinationBank = DB;
             DestinationBankLSB = DBLSB;
             Enabled = E;
+
+            if (enabledChanged)
+                OnPropertyChanged("SoundFontDisplayName");
         }
 
         public void SetGenSettings(bool XGM, bool LAM, bool LDV, bool MF, bool SL, bool NRI)

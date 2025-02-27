@@ -17,52 +17,51 @@
 			<ListBox Name="SoundFontListView" SelectionMode="Multiple" Grid.Column="0" DragDrop.AllowDrop="True" SelectionChanged="SelectedSFChanged">
 				<ListBox.ItemTemplate>
 					<DataTemplate>
-						<TextBlock Name="SoundFontTemplate" x:DataType="oc:SoundFont" Text="{Binding SoundFontPath}"/>
+						<TextBlock Name="SoundFontTemplate" x:DataType="oc:SoundFont" Text="{Binding SoundFontDisplayName}"/>
 					</DataTemplate>
 				</ListBox.ItemTemplate>
 			</ListBox>
 			<ctrl:GroupBox Grid.Column="1" Header="Settings" Theme="{StaticResource GroupBoxClassic}" Margin="10, 0, 0, 0">
 				<Panel>
-					<StackPanel Name="SettingsArea">
+					<StackPanel Name="SettingsArea" IsEnabled="false">
 						<StackPanel Margin="4">
 							<Label Content="SOURCE" HorizontalContentAlignment="Center" FontWeight="Bold"/>
 							<Grid ColumnDefinitions="1*, 2*">
 								<Label Grid.Column="0" Content="Preset:" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-								<NumericUpDown Name="SourcePreset" Grid.Column="1" Value="-1" Minimum="-1" Maximum="127" HorizontalContentAlignment="Center" FormatString="0" />
+								<NumericUpDown Name="SourcePreset" Grid.Column="1" Value="-1" Minimum="-1" Maximum="127" HorizontalContentAlignment="Center" FormatString="0" ValueChanged="PresetSettingChanged" />
 							</Grid>
 							<Grid ColumnDefinitions="1*, 2*">
 								<Label Grid.Column="0" Content="Bank:" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-								<NumericUpDown Name="SourceBank" Grid.Column="1" Value="-1" Minimum="-1" Maximum="127" HorizontalContentAlignment="Center" FormatString="0" />
+								<NumericUpDown Name="SourceBank" Grid.Column="1" Value="-1" Minimum="-1" Maximum="127" HorizontalContentAlignment="Center" FormatString="0" ValueChanged="PresetSettingChanged" />
 							</Grid>
 						</StackPanel>
 						<StackPanel Margin="4">
 							<Label Content="DESTINATION" HorizontalContentAlignment="Center" FontWeight="Bold"/>
 							<Grid ColumnDefinitions="1*, 2*">
 								<Label Grid.Column="0" Content="Bank:" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-								<NumericUpDown Name="DestinationBank" Grid.Column="1" Value="0" Minimum="0" Maximum="127" HorizontalContentAlignment="Center" FormatString="0" />
+								<NumericUpDown Name="DestinationBank" Grid.Column="1" Value="0" Minimum="0" Maximum="127" HorizontalContentAlignment="Center" FormatString="0" ValueChanged="PresetSettingChanged" />
 							</Grid>
 							<Grid ColumnDefinitions="1*, 2*">
 								<Label Grid.Column="0" Content="LSB:" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-								<NumericUpDown Name="DestinationBankLSB" Grid.Column="1" Value="0" Minimum="-1" Maximum="127" HorizontalContentAlignment="Center" FormatString="0" />
+								<NumericUpDown Name="DestinationBankLSB" Grid.Column="1" Value="0" Minimum="-1" Maximum="127" HorizontalContentAlignment="Center" FormatString="0" ValueChanged="PresetSettingChanged" />
 							</Grid>
 							<Grid ColumnDefinitions="1*, 2*">
 								<Label Grid.Column="0" Content="Preset:" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-								<NumericUpDown Name="DestinationPreset" Grid.Column="1" Value="-1" Minimum="-1" Maximum="127" HorizontalContentAlignment="Center" FormatString="0" />
+								<NumericUpDown Name="DestinationPreset" Grid.Column="1" Value="-1" Minimum="-1" Maximum="127" HorizontalContentAlignment="Center" FormatString="0" ValueChanged="PresetSettingChanged" />
 							</Grid>
 						</StackPanel>
 						<StackPanel Margin="4">
 							<Label Content="ADDITIONAL SET." HorizontalContentAlignment="Center" FontWeight="Bold" Padding="4, 4, 4, 8"/>
-							<CheckBox Name="XGDrums" Content="Load XG bank first" HorizontalAlignment="Left" />
-							<CheckBox Name="LinAttMod" Content="Use linear attack"  HorizontalAlignment="Left" />
-							<CheckBox Name="LinDecVol" Content="Use linear decay/release" HorizontalAlignment="Left" />
-							<CheckBox Name="MinFx" Content="Treat reverb/chorus val. as min."  HorizontalAlignment="Left" />
-							<CheckBox Name="EnforceSBLimits" Content="Enforce SoundBlaster gen. limits" HorizontalAlignment="Left" />
-							<CheckBox Name="NoRampIn" Content="Do not ramp-in start of samples"  HorizontalAlignment="Left" />
+							<CheckBox Name="XGDrums" Content="Load XG bank first" HorizontalAlignment="Left" Click="GenSettingChanged" />
+							<CheckBox Name="LinAttMod" Content="Use linear attack"  HorizontalAlignment="Left" Click="GenSettingChanged" />
+							<CheckBox Name="LinDecVol" Content="Use linear decay/release" HorizontalAlignment="Left" Click="GenSettingChanged" />
+							<CheckBox Name="MinFx" Content="Treat reverb/chorus val. as min."  HorizontalAlignment="Left" Click="GenSettingChanged" />
+							<CheckBox Name="EnforceSBLimits" Content="Enforce SoundBlaster gen. limits" HorizontalAlignment="Left" Click="GenSettingChanged" />
+							<CheckBox Name="NoRampIn" Content="Do not ramp-in start of samples"  HorizontalAlignment="Left" Click="GenSettingChanged" />
 						</StackPanel>
 					</StackPanel>
 					<StackPanel VerticalAlignment="Bottom">
-						<CheckBox Name="Enabled" Content="Enabled" HorizontalAlignment="Center" />
-						<Button Name="ApplySFSettings" Content="Apply SF settings" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="4" Click="ApplySoundFontSettings" />
+						<CheckBox Name="Enabled" Content="Enabled" HorizontalAlignment="Center" Click="PresetSettingChanged" IsEnabled="false" />
 					</StackPanel>
 				</Panel>
 			</ctrl:GroupBox>

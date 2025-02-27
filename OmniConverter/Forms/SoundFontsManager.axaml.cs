@@ -117,6 +117,9 @@ public partial class SoundFontsManager : Window
             DestinationBank.Value = item.DestinationBank;
             DestinationBankLSB.Value = item.DestinationBankLSB;
             DestinationPreset.Value = item.DestinationPreset;
+
+            SettingsArea.IsEnabled = true;
+            Enabled.IsEnabled = true;
             return;
         }
 
@@ -138,9 +141,22 @@ public partial class SoundFontsManager : Window
         DestinationBank.Value = 0;
         DestinationBankLSB.Value = 0;
         DestinationPreset.Value = -1;
+
+        SettingsArea.IsEnabled = false;
+        Enabled.IsEnabled = false;
     }
 
-    private void ApplySoundFontSettings(object? sender, RoutedEventArgs e)
+    private void PresetSettingChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+    {
+        PresetSettingChanged();
+    }
+
+    private void PresetSettingChanged(object? sender, RoutedEventArgs e)
+    {
+        PresetSettingChanged();
+    }
+
+    private void PresetSettingChanged()
     {
         int index = SoundFontListView.SelectedIndex;
 
@@ -152,16 +168,26 @@ public partial class SoundFontsManager : Window
                      (short)SourcePreset.Value, (short)SourceBank.Value,
                      (short)DestinationPreset.Value, (short)DestinationBank.Value, (short)DestinationBankLSB.Value,
                      (bool)Enabled.IsChecked);
+        }
+
+        RefreshList();
+    }
+
+    private void GenSettingChanged(object? sender, RoutedEventArgs e)
+    {
+        int index = SoundFontListView.SelectedIndex;
+
+        if (index != -1)
+        {
+            var item = (SoundFont)SoundFontListView.Items[index];
 
             item.SetGenSettings(
-                (bool)XGDrums.IsChecked, 
+                (bool)XGDrums.IsChecked,
                 (bool)LinAttMod.IsChecked,
-                (bool)LinDecVol.IsChecked, 
-                (bool)MinFx.IsChecked, 
-                (bool)EnforceSBLimits.IsChecked, 
+                (bool)LinDecVol.IsChecked,
+                (bool)MinFx.IsChecked,
+                (bool)EnforceSBLimits.IsChecked,
                 (bool)NoRampIn.IsChecked);
-
-            return;
         }
 
         RefreshList();
