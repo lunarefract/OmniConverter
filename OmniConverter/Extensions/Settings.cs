@@ -20,10 +20,10 @@ namespace OmniConverter
         }
 
         [JsonProperty]
-        public int MaxVoices = 2048;
+        public double Volume = 1.0;
 
         [JsonProperty]
-        public double Volume = 1.0;
+        public int MaxVoices = 2048;
 
         [JsonProperty]
         public int SampleRate = 48000;
@@ -33,6 +33,9 @@ namespace OmniConverter
 
         [JsonProperty]
         public bool KilledNoteFading = false;
+
+        [JsonProperty]
+        public bool DisableEffects = true;
 
         [JsonProperty]
         public bool AudioLimiter = false;
@@ -55,9 +58,6 @@ namespace OmniConverter
     [JsonObject]
     public class BASSSettings : ICloneable
     {
-        [JsonProperty]
-        public bool DisableEffects = true;
-
         [JsonProperty]
         public bool NoteOff1 = false;
 
@@ -262,15 +262,15 @@ namespace OmniConverter
             switch (Renderer)
             {
                 case EngineID.XSynth:
-                    _cachedEngine = new XSynthEngine(_waveFormat, this);
+                    _cachedEngine = new XSynthEngine(this);
                     break;
 
                 case EngineID.FluidSynth:
-                    _cachedEngine = new FluidSynthEngine(_waveFormat, this);
+                    _cachedEngine = new FluidSynthEngine(this);
                     break;
 
                 case EngineID.BASS:
-                    _cachedEngine = new BASSEngine(_waveFormat, this);
+                    _cachedEngine = new BASSEngine(this);
                     break;
 
                 default:
@@ -280,7 +280,7 @@ namespace OmniConverter
             return _cachedEngine;
         }
 
-        public MIDIRenderer? GetRenderer()
+        public AudioRenderer? GetRenderer()
         {
             switch (_cachedEngine)
             {

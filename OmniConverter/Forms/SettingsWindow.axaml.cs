@@ -64,7 +64,7 @@ public partial class SettingsWindow : Window
 
         BASS_MaxVoices.Value = Program.Settings.Synth.MaxVoices;
         XSynth_MaxLayers.Value = Program.Settings.XSynth.MaxLayers;
-        BASS_DisableFX.IsChecked = Program.Settings.BASS.DisableEffects;
+        BASS_DisableFX.IsChecked = Program.Settings.Synth.DisableEffects;
         BASS_NoteOff1.IsChecked = Program.Settings.BASS.NoteOff1;
         XSynth_UseEffects.IsChecked = Program.Settings.XSynth.UseEffects;
         XSynth_LinearEnv.IsChecked = Program.Settings.XSynth.LinearEnvelope;
@@ -339,7 +339,7 @@ public partial class SettingsWindow : Window
             Program.Settings.Encoder.AudioBitrate = (int)AudioBitrate.Value;
 
         if (BASS_DisableFX.IsChecked != null)
-            Program.Settings.BASS.DisableEffects = (bool)BASS_DisableFX.IsChecked;
+            Program.Settings.Synth.DisableEffects = (bool)BASS_DisableFX.IsChecked;
         if (BASS_NoteOff1.IsChecked != null)
             Program.Settings.BASS.NoteOff1 = (bool)BASS_NoteOff1.IsChecked;
 

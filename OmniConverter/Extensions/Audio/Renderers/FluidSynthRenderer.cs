@@ -10,11 +10,10 @@ namespace OmniConverter
     public class FluidSynthEngine : AudioEngine
     {
         private NFluidsynth.Settings _fluidSynthSettings;
-        private Settings _cachedSettings;
 
         public readonly object SFLock = new object();
 
-        public unsafe FluidSynthEngine(CSCore.WaveFormat waveFormat, Settings settings) : base(waveFormat, settings, false)
+        public unsafe FluidSynthEngine(Settings settings) : base(settings, false)
         {
             Debug.PrintToConsole(Debug.LogType.Message, $"Preparing FluidSynth settings...");
 
@@ -30,7 +29,7 @@ namespace OmniConverter
 
             _cachedSettings = settings;
 
-            Initialized = true;
+            _init = true;
 
             Debug.PrintToConsole(Debug.LogType.Message, $"FluidSynth settings prepared...");
 
@@ -42,7 +41,7 @@ namespace OmniConverter
             if (_disposed)
                 return;
 
-            if (Initialized)
+            if (_init)
             {
                 _fluidSynthSettings.Dispose();
             }
@@ -54,7 +53,7 @@ namespace OmniConverter
         public Settings GetConverterSettings() => _cachedSettings;
     }
 
-    public class FluidSynthRenderer : MIDIRenderer
+    public class FluidSynthRenderer : AudioRenderer
     {
         public Synth? handle { get; private set; } = null;
         private bool noMoreData = false;
@@ -69,7 +68,7 @@ namespace OmniConverter
 
         private FluidSynthEngine reference;
 
-        public FluidSynthRenderer(FluidSynthEngine fluidsynth) : base(fluidsynth.WaveFormat, fluidsynth.CachedSettings.Synth.Volume, false)
+        public FluidSynthRenderer(FluidSynthEngine fluidsynth) : base(fluidsynth, false)
         {
             reference = fluidsynth;
 
@@ -83,8 +82,31 @@ namespace OmniConverter
 
             handle = new(reference.GetFluidSynthSettings());
             var tmp = reference.GetConverterSettings();
+            var interp = FluidInterpolation.Linear;
+
+            switch (tmp.Synth.Interpolation)
+            {
+                case GlobalSynthSettings.InterpolationType.None:
+                    interp = FluidInterpolation.None;
+                    break;
+
+                case GlobalSynthSettings.InterpolationType.Point8:
+                case GlobalSynthSettings.InterpolationType.Point16:
+                    interp = FluidInterpolation.FourthOrder;
+                    break;
+
+                case GlobalSynthSettings.InterpolationType.Point32:
+                case GlobalSynthSettings.InterpolationType.Point64:
+                    interp = FluidInterpolation.SeventhOrder;
+                    break;
+
+                case GlobalSynthSettings.InterpolationType.Linear:
+                default:
+                    break;
+            }
 
             handle.Gain = (float)tmp.Synth.Volume;
+            handle.SetInterpolationMethod(-1, interp);
 
             // FluidSynth "thread-safe API" moment
             lock (reference.SFLock)
@@ -147,7 +169,7 @@ namespace OmniConverter
             Array.Clear(bufOutL, 0, bufOutL.Length);
             Array.Clear(bufOutR, 0, bufOutR.Length);
 
-            lock (Lock)
+            lock (_lock)
             {
                 fixed (float* buff = buffer)
                 {
@@ -163,7 +185,7 @@ namespace OmniConverter
                 }           
             }
 
-            streamLength += count;
+            _streamLength += count;
             return count;
         }
 
@@ -201,11 +223,6 @@ namespace OmniConverter
             switch ((MIDIEventType)(status & 0xF0))
             {
                 case MIDIEventType.NoteOn:
-                    if (reference.CachedSettings.Event.FilterVelocity && param2 >= reference.CachedSettings.Event.VelocityLow && param2 <= reference.CachedSettings.Event.VelocityHigh)
-                        return;
-                    if (reference.CachedSettings.Event.FilterKey && (param1 < reference.CachedSettings.Event.KeyLow || param1 > reference.CachedSettings.Event.KeyHigh))
-                        return;
-
                     if (param1 == 0)
                     {
                         handle.NoteOff(chan, param1);
@@ -214,9 +231,6 @@ namespace OmniConverter
                     return;
 
                 case MIDIEventType.NoteOff:
-                    if (reference.CachedSettings.Event.FilterKey && (param1 < reference.CachedSettings.Event.KeyLow || param1 > reference.CachedSettings.Event.KeyHigh))
-                        return;
-
                     handle.NoteOff(chan, param1);
                     return;
 

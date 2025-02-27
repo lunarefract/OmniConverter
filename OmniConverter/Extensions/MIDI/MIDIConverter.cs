@@ -265,7 +265,7 @@ namespace OmniConverter
                 if (_audioRenderer == null)
                     throw new Exception("Invalid audio renderer!");
 
-                if (_audioRenderer.Initialized)
+                if (_audioRenderer.IsInitialized())
                 {
                     // Cache variables
                     _autoDev = _audioRenderer is BASSEngine;
@@ -371,7 +371,7 @@ namespace OmniConverter
                     {
                         using (var msm = new MultiStreamMerger(_cachedSettings.WaveFormat))
                         {
-                            using (var eventsProcesser = new EventsProcesser(_cachedSettings, _audioRenderer, evs, midi))
+                            using (var eventsProcesser = new EventsProcesser(_audioRenderer, evs, midi))
                             {
                                 AutoFillInfo(ConvStatus.SingleConv);
 
@@ -588,7 +588,7 @@ namespace OmniConverter
                                 }
                                 else sampleWriter = msm.GetWriter();
 
-                                using (var eventsProcesser = new EventsProcesser(_cachedSettings, _audioRenderer, midiTrack, midi, track))
+                                using (var eventsProcesser = new EventsProcesser(_audioRenderer, midiTrack, midi, track))
                                 {
                                     Dispatcher.UIThread.Post(() => trackPanel = new TaskStatus($"Track {track}", _panelRef, eventsProcesser));
 
@@ -797,8 +797,9 @@ namespace OmniConverter
 
     public class EventsProcesser : OmniTask
     {
-        MIDIRenderer? _midiRenderer = null;
         AudioEngine _audioRenderer;
+        AudioRenderer? _midiRenderer = null;
+
         IEnumerable<MIDIEvent>? _events = new List<MIDIEvent>();
         MidiFile _file;
         Settings _cachedSettings;
@@ -829,7 +830,7 @@ namespace OmniConverter
         public bool IsRTS => rtsMode;
         public double Framerate => 1 / curFrametime;
 
-        public EventsProcesser(Settings cachedSettings, AudioEngine audioRenderer, IEnumerable<MIDIEvent> events, MIDI? midi, int track = -1)
+        public EventsProcesser(AudioEngine audioRenderer, IEnumerable<MIDIEvent> events, MIDI? midi, int track = -1)
         {
             if (midi == null)
                 throw new NullReferenceException("MIDI is null");
@@ -841,7 +842,7 @@ namespace OmniConverter
             _audioRenderer = audioRenderer;
             _events = events;
             _eventsCount = track < 0 ? midi.TotalEventCount : midi.EventCounts[track];
-            _cachedSettings = cachedSettings;
+            _cachedSettings = _audioRenderer.GetCachedSettings();
             _length = midi.Length.TotalSeconds;
         }
 
@@ -947,19 +948,32 @@ namespace OmniConverter
                             switch (e)
                             {
                                 case ControlChangeEvent ev:
-                                    if (_audioRenderer.CachedSettings.Event.OverrideEffects && (ev.Controller == 0x5B || ev.Controller == 0x5D))
+                                    if (_cachedSettings.Event.OverrideEffects && (ev.Controller == 0x5B || ev.Controller == 0x5D))
                                         break;
 
                                     goto default;
 
                                 case ProgramChangeEvent:
-                                    if (!_audioRenderer.CachedSettings.Event.IgnoreProgramChanges)
+                                    if (!_cachedSettings.Event.IgnoreProgramChanges)
                                         goto default;
 
                                     break;
 
-                                case NoteOnEvent:
+                                case NoteOnEvent non:
                                     playedNotes++;
+
+                                    if (_cachedSettings.Event.FilterVelocity && eb[2] >= _cachedSettings.Event.VelocityLow && eb[2] <= _cachedSettings.Event.VelocityHigh)
+                                        break;
+
+                                    if (_cachedSettings.Event.FilterKey && (eb[1] < _cachedSettings.Event.KeyLow || eb[1] > _cachedSettings.Event.KeyHigh))
+                                        break;
+
+                                    goto default;
+
+                                case NoteOffEvent noff:
+                                    if (_cachedSettings.Event.FilterKey && (eb[1] < _cachedSettings.Event.KeyLow || eb[1] > _cachedSettings.Event.KeyHigh))
+                                        return;
+
                                     goto default;
 
                                 case MIDIPortEvent:

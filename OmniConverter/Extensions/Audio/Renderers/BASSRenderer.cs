@@ -16,7 +16,7 @@ namespace OmniConverter
         private int FlacPlug = 0;
         private MidiFontEx[]? _bassArray;
 
-        public BASSEngine(CSCore.WaveFormat waveFormat, Settings settings) : base(waveFormat, settings, false)
+        public BASSEngine(Settings settings) : base(settings, false)
         {
             /*                                                                                                                                                                            
                                 -+++------.                             
@@ -45,7 +45,7 @@ namespace OmniConverter
                                        -++.                             
             */
 
-            if (Bass.Init(Bass.NoSoundDevice, waveFormat.SampleRate, DeviceInitFlags.Default))
+            if (Bass.Init(Bass.NoSoundDevice, _cachedSettings.WaveFormat.SampleRate, DeviceInitFlags.Default))
             {
                 _bassArray = InitializeSoundFonts();
 
@@ -55,17 +55,17 @@ namespace OmniConverter
                 if (tmp != 0)
                 {
                     // Subtract 1 because BASS uses -1 for no interpolation, 0 for linear and so on
-                    var interp = ((int)CachedSettings.Synth.Interpolation)
+                    var interp = ((int)_cachedSettings.Synth.Interpolation)
                         .LimitToRange((int)GlobalSynthSettings.InterpolationType.None,
                                       (int)GlobalSynthSettings.InterpolationType.Max) - 1;
 
-                    Bass.Configure(Configuration.MidiVoices, CachedSettings.Synth.MaxVoices);
+                    Bass.Configure(Configuration.MidiVoices, _cachedSettings.Synth.MaxVoices);
                     Bass.Configure(Configuration.SRCQuality, interp);
                     Bass.Configure(Configuration.SampleSRCQuality, interp);
 
                     Bass.StreamFree(tmp);
 
-                    Initialized = true;
+                    _init = true;
 
                     if (FlacPlug == 0)
                         Debug.PrintToConsole(Debug.LogType.Warning, "BASSFLAC failed to load, this could lead to incorrect opcode handling when using SFZ based SoundFonts using FLAC samples.");
@@ -90,10 +90,10 @@ namespace OmniConverter
             if (FlacPlug != 0)
                 Bass.PluginFree(FlacPlug);
 
-            if (Initialized)
+            if (_init)
                 Bass.Free();
 
-            Initialized = false;
+            _init = false;
             _disposed = true;
         }
 
@@ -101,7 +101,7 @@ namespace OmniConverter
         {
             var _bassArray = new List<MidiFontEx>();
 
-            foreach (SoundFont sf in CachedSettings.SoundFontsList)
+            foreach (SoundFont sf in _cachedSettings.SoundFontsList)
             {
                 if (!sf.Enabled)
                 {
@@ -187,7 +187,7 @@ namespace OmniConverter
         public MidiFontEx[]? GetSoundFontsArray() => _bassArray;
     }
 
-    public class BASSRenderer : MIDIRenderer
+    public class BASSRenderer : AudioRenderer
     {
         private readonly BassFlags Flags;
         public int Handle { get; private set; } = 0;
@@ -197,20 +197,23 @@ namespace OmniConverter
         private VolumeFxParameters? VolParam = null;
         private MidiFontEx[]? SfArray = [];
 
-        public BASSRenderer(BASSEngine bass) : base(bass.WaveFormat, bass.CachedSettings.Synth.Volume, false)
+        public BASSRenderer(BASSEngine bass) : base(bass, false)
         {
             if (UniqueID == string.Empty)
                 return;
 
+            if (bass == null)
+                return;
+                
             reference = bass;
 
             bool isFloat = WaveFormat.WaveFormatTag == AudioEncoding.IeeeFloat;
             Flags = BassFlags.Decode | BassFlags.MidiDecayEnd;
             Debug.PrintToConsole(Debug.LogType.Message, $"Stream unique ID: {UniqueID}");
 
-            Flags |= (reference.CachedSettings.Synth.Interpolation > GlobalSynthSettings.InterpolationType.Linear) ? BassFlags.SincInterpolation : BassFlags.Default;
-            Flags |= reference.CachedSettings.BASS.DisableEffects ? BassFlags.MidiNoFx : BassFlags.Default;
-            Flags |= reference.CachedSettings.BASS.NoteOff1 ? BassFlags.MidiNoteOff1 : BassFlags.Default;
+            Flags |= (_cachedSettings.Synth.Interpolation > GlobalSynthSettings.InterpolationType.Linear) ? BassFlags.SincInterpolation : BassFlags.Default;
+            Flags |= _cachedSettings.Synth.DisableEffects ? BassFlags.MidiNoFx : BassFlags.Default;
+            Flags |= _cachedSettings.BASS.NoteOff1 ? BassFlags.MidiNoteOff1 : BassFlags.Default;
             Flags |= isFloat ? BassFlags.Float : BassFlags.Default;
 
             Handle = BassMidi.CreateStream(16, Flags, WaveFormat.SampleRate);
@@ -223,7 +226,7 @@ namespace OmniConverter
             if (IsError("Unable to set volume FX."))
                 return;
 
-            Bass.ChannelSetAttribute(Handle, ChannelAttribute.MidiKill, Convert.ToDouble(reference.CachedSettings.Synth.KilledNoteFading));
+            Bass.ChannelSetAttribute(Handle, ChannelAttribute.MidiKill, Convert.ToDouble(_cachedSettings.Synth.KilledNoteFading));
 
             SfArray = reference.GetSoundFontsArray();
             if (SfArray != null)
@@ -237,7 +240,7 @@ namespace OmniConverter
                 VolParam = new VolumeFxParameters();
 
             VolParam.fCurrent = 1.0f;
-            VolParam.fTarget = (float)Volume;
+            VolParam.fTarget = (float)_cachedSettings.Synth.Volume;
             VolParam.fTime = 0.0f;
             VolParam.lCurve = 1;
             Bass.FXSetParameters(VolHandle, VolParam);
@@ -260,7 +263,7 @@ namespace OmniConverter
         {
             int ret = 0;
 
-            lock (Lock)
+            lock (_lock)
             {
                 fixed (float* buff = buffer)
                 {
@@ -305,19 +308,10 @@ namespace OmniConverter
             switch ((MIDIEventType)(status & 0xF0))
             {
                 case MIDIEventType.NoteOn:
-                    if (reference.CachedSettings.Event.FilterVelocity && param2 >= reference.CachedSettings.Event.VelocityLow && param2 <= reference.CachedSettings.Event.VelocityHigh)
-                        return;
-
-                    if (reference.CachedSettings.Event.FilterKey && (param1 < reference.CachedSettings.Event.KeyLow || param1 > reference.CachedSettings.Event.KeyHigh))
-                        return;
-
                     eventParams = param2 << 8 | param1;
                     break;
 
                 case MIDIEventType.NoteOff:
-                    if (reference.CachedSettings.Event.FilterKey && (param1 < reference.CachedSettings.Event.KeyLow || param1 > reference.CachedSettings.Event.KeyHigh))
-                        return;
-
                     eventParams = param1;
                     break;
 
@@ -388,7 +382,7 @@ namespace OmniConverter
 
             if (disposing)
             {
-                lock (Lock)
+                lock (_lock)
                     Bass.StreamFree(Handle);
             }
 

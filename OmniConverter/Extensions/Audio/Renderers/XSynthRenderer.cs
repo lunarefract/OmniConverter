@@ -177,7 +177,7 @@ namespace OmniConverter
         private StreamParams _streamParams;
         private GroupOptions _groupOptions;
 
-        public unsafe XSynthEngine(CSCore.WaveFormat waveFormat, Settings settings) : base(waveFormat, settings, false)
+        public unsafe XSynthEngine(Settings settings) : base(settings, false)
         {
             var libraryVersion = GetVersionInt();
             if (libraryVersion >> 8 != APIVersion >> 8)
@@ -188,30 +188,32 @@ namespace OmniConverter
 
             Debug.PrintToConsole(Debug.LogType.Message, $"Preparing XSynth...");
 
+            var waveFormat = GetWaveFormat();
+
             _streamParams = GenDefault_StreamParams();
             _groupOptions = GenDefault_GroupOptions();
 
-            _streamParams.audio_channels = (ChannelCount)waveFormat.Channels;
+            _streamParams.audio_channels = (ChannelCount)_waveFormat.Channels;
             _streamParams.sample_rate = (uint)waveFormat.SampleRate;
 
             _groupOptions.stream_params = _streamParams;
             _groupOptions.channels = 16;
-            _groupOptions.fade_out_killing = !CachedSettings.Synth.KilledNoteFading;
+            _groupOptions.fade_out_killing = !_cachedSettings.Synth.KilledNoteFading;
 
             _groupOptions.parallelism = GenDefault_ParallelismOptions();
-            switch (CachedSettings.XSynth.Threading)
+            switch (_cachedSettings.XSynth.Threading)
             {
                 case XSynthSettings.ThreadingType.None:
                     _groupOptions.parallelism.channel = -1;
                     _groupOptions.parallelism.key = -1;
                     break;
                 case XSynthSettings.ThreadingType.PerChannel:
-                    _groupOptions.parallelism.channel = CachedSettings.Render.ThreadsCount;
+                    _groupOptions.parallelism.channel = _cachedSettings.Render.ThreadsCount;
                     _groupOptions.parallelism.key = -1;
                     break;
                 case XSynthSettings.ThreadingType.PerKey:
-                    _groupOptions.parallelism.channel = CachedSettings.Render.ThreadsCount;
-                    _groupOptions.parallelism.key = CachedSettings.Render.ThreadsCount;
+                    _groupOptions.parallelism.channel = _cachedSettings.Render.ThreadsCount;
+                    _groupOptions.parallelism.key = _cachedSettings.Render.ThreadsCount;
                     break;
                 default:
                     break;
@@ -229,7 +231,7 @@ namespace OmniConverter
             _sfArray = Marshal.AllocHGlobal(tmp.Length * sizeof(XSynth_Soundfont));
             MarshalExt.CopyToManaged(tmp, _sfArray, 0, tmp.Length);
 
-            Initialized = true;
+            _init = true;
 
             Debug.PrintToConsole(Debug.LogType.Message, $"XSynth set up for {_streamParams.audio_channels}ch output at {_streamParams.sample_rate}Hz ");
             Debug.PrintToConsole(Debug.LogType.Message, $"FadeOutKilling = {_groupOptions.fade_out_killing}");
@@ -243,14 +245,14 @@ namespace OmniConverter
             if (_disposed)
                 return;
 
-            if (Initialized)
+            if (_init)
             {
                 foreach (var group in _channelGroups)
                     ChannelGroup_Drop(group);
 
                 FreeSoundFontsArray();
 
-                Initialized = false;
+                _init = false;
             }
 
             _disposed = true;
@@ -258,7 +260,7 @@ namespace OmniConverter
 
         private XSynth_Soundfont[]? InitializeSoundFonts()
         {
-            foreach (SoundFont sf in CachedSettings.SoundFontsList)
+            foreach (SoundFont sf in _cachedSettings.SoundFontsList)
             {
                 if (!sf.Enabled)
                 {
@@ -272,13 +274,13 @@ namespace OmniConverter
                 _soundfontOptions.stream_params = _streamParams;
                 _soundfontOptions.bank = sf.SourceBank;
                 _soundfontOptions.preset = sf.SourcePreset;
-                if (CachedSettings.XSynth.LinearEnvelope) {
+                if (_cachedSettings.XSynth.LinearEnvelope) {
                     // Linear in amplitude -> Exponential in dB (XSynth uses dB units)
                     _soundfontOptions.vol_envelope_options.decay_curve = EnvelopeCurve.Exponential;
                     _soundfontOptions.vol_envelope_options.release_curve = EnvelopeCurve.Exponential;
                 }
-                _soundfontOptions.use_effects = CachedSettings.XSynth.UseEffects;
-                _soundfontOptions.interpolator = CachedSettings.Synth.Interpolation switch {
+                _soundfontOptions.use_effects = _cachedSettings.XSynth.UseEffects;
+                _soundfontOptions.interpolator = _cachedSettings.Synth.Interpolation switch {
                     GlobalSynthSettings.InterpolationType.None => Interpolation.Nearest,
                     _ => Interpolation.Linear,
                 };
@@ -327,7 +329,7 @@ namespace OmniConverter
         public GroupOptions GetGroupOptions() => _groupOptions;
     }
 
-    public class XSynthRenderer : MIDIRenderer
+    public class XSynthRenderer : AudioRenderer
     {
         public XSynth_ChannelGroup? handle { get; private set; } = null;
         private ulong sfCount = 0;
@@ -336,7 +338,7 @@ namespace OmniConverter
         private GroupOptions groupOptions;
         private double dbVolume = 1.0;
 
-        public XSynthRenderer(XSynthEngine xsynth) : base(xsynth.WaveFormat, xsynth.CachedSettings.Synth.Volume, false)
+        public XSynthRenderer(XSynthEngine xsynth) : base(xsynth, false)
         {
             reference = xsynth;
 
@@ -356,7 +358,7 @@ namespace OmniConverter
                 handle = ChannelGroup_Create(groupOptions);
 
                 reference.AddChannel((XSynth_ChannelGroup)handle);
-                ChannelGroup_SendConfigEventAll((XSynth_ChannelGroup)handle, ConfigEvent.SetLayers, (uint)reference.CachedSettings.XSynth.MaxLayers);
+                ChannelGroup_SendConfigEventAll((XSynth_ChannelGroup)handle, ConfigEvent.SetLayers, (uint)_cachedSettings.XSynth.MaxLayers);
                 ChannelGroup_SetSoundfonts((XSynth_ChannelGroup)handle, sfArray, sfCount);
 
                 var tmp = ChannelGroup_GetStreamParams((XSynth_ChannelGroup)handle);
@@ -383,22 +385,22 @@ namespace OmniConverter
             if (handle == null)
                 return 0;
 
-            lock (Lock)
+            lock (_lock)
             {
                 fixed (float* buff = buffer)
                 {
                     var offsetBuff = buff + offset;
                     ChannelGroup_ReadSamples((XSynth_ChannelGroup)handle, (nint)offsetBuff, (ulong)count);
 
-                    if (Volume < 1.0)
+                    if (_cachedSettings.Synth.Volume < 1.0)
                     {
                         for (int i = 0; i < count; i++)
-                            offsetBuff[i] = offsetBuff[i] * (float)Volume;
+                            offsetBuff[i] = offsetBuff[i] * (float)_cachedSettings.Synth.Volume;
                     }
                 }
             }
 
-            streamLength += count;
+            _streamLength += count;
             return count;
         }
 
@@ -433,11 +435,6 @@ namespace OmniConverter
             switch ((MIDIEventType)(status & 0xF0))
             {
                 case MIDIEventType.NoteOn:
-                    if (reference.CachedSettings.Event.FilterVelocity && param2 >= reference.CachedSettings.Event.VelocityLow && param2 <= reference.CachedSettings.Event.VelocityHigh)
-                        return;
-                    if (reference.CachedSettings.Event.FilterKey && (param1 < reference.CachedSettings.Event.KeyLow || param1 > reference.CachedSettings.Event.KeyHigh))
-                        return;
-
                     if (param1 == 0)
                     {
                         eventType = AudioEvent.NoteOff;
@@ -447,9 +444,6 @@ namespace OmniConverter
                     break;
 
                 case MIDIEventType.NoteOff:
-                    if (reference.CachedSettings.Event.FilterKey && (param1 < reference.CachedSettings.Event.KeyLow || param1 > reference.CachedSettings.Event.KeyHigh))
-                        return;
-
                     eventType = AudioEvent.NoteOff;
                     eventParams = param1;
                     break;

@@ -1,5 +1,4 @@
 ﻿using CSCore;
-using ManagedBass.Fx;
 using System;
 
 namespace OmniConverter
@@ -34,12 +33,48 @@ namespace OmniConverter
         Unknown4 = 0xFD
     };
 
-    public abstract class MIDIRenderer : ISampleSource
+    public enum EngineID
     {
-        protected readonly object Lock = new object();
-        protected long streamLength = 0;
+        Unknown = -1,
+        BASS = 0,
+        XSynth = 1,
+        FluidSynth = 2,
+        MAX = FluidSynth
+    }
 
-        protected double Volume { get; set; }
+    public abstract class AudioEngine : IDisposable
+    {
+        protected bool _disposed = false;
+        protected bool _init = false;
+        protected WaveFormat _waveFormat = new(48000, 32, 2);
+        protected Settings _cachedSettings;
+
+        public AudioEngine(Settings settings, bool defaultInit = true)
+        {
+            _cachedSettings = settings;
+            _waveFormat = new(settings.Synth.SampleRate, 32, 2);
+            _init = defaultInit;
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        public Settings GetCachedSettings() => _cachedSettings;
+        public WaveFormat GetWaveFormat() => _waveFormat;
+        public bool IsInitialized() => _init;
+
+        protected abstract void Dispose(bool disposing);
+    }
+
+    public abstract class AudioRenderer : ISampleSource
+    {
+        protected Settings _cachedSettings;
+        protected readonly object _lock = new object();
+        protected long _streamLength = 0;
+
         public string UniqueID { get; protected set; } = IDGenerator.GetID();
         public bool CanSeek { get; protected set; } = false;
         public WaveFormat WaveFormat { get; protected set; } = new(48000, 32, 2);
@@ -48,7 +83,12 @@ namespace OmniConverter
         public ulong ActiveVoices { get; protected set; } = 0;
         public float RenderingTime { get; protected set; } = 0.0f;
 
-        public MIDIRenderer(WaveFormat waveFormat, double volume, bool defaultInt = true) { WaveFormat = waveFormat; Volume = volume; Initialized = defaultInt; }
+        public AudioRenderer(AudioEngine audioEngine, bool defaultInt = true) 
+        { 
+            WaveFormat = audioEngine.GetWaveFormat(); 
+            _cachedSettings = audioEngine.GetCachedSettings(); 
+            Initialized = defaultInt; 
+        }
 
         public abstract void SystemReset();
         public abstract bool SendCustomFXEvents(int channel, short reverb, short chorus);
@@ -56,10 +96,11 @@ namespace OmniConverter
         public abstract unsafe int Read(float[] buffer, int offset, long delta, int count);
         public abstract void RefreshInfo();
         public abstract void SendEndEvent();
-        public virtual long Position { get { return streamLength; } set { } }
-        public virtual long Length { get { return streamLength; } }
+        public virtual long Position { get { return _streamLength; } set { } }
+        public virtual long Length { get { return _streamLength; } }
 
         public int Read(float[] buffer, int offset, int count) => Read(buffer, offset, 0, count);
+
         public void Dispose()
         {
             Dispose(true);
