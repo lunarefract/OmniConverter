@@ -198,33 +198,19 @@ namespace OmniConverter
             ulong _processed = _validator.GetProcessedEvents();
             ulong _all = _validator.GetTotalEvents();
 
-            if (intStatus == ConvStatus.Idle ||
-                intStatus == ConvStatus.Prep ||
-                intStatus == ConvStatus.Dead)
-            {
-                _progress = Math.Round(_processed * 100.0 / _all);
+            bool isActive = (intStatus == ConvStatus.Idle || intStatus == ConvStatus.Prep || intStatus == ConvStatus.Dead);
 
-                if (_cachedSettings.Render.PerTrackMode)
-                    _tracksProgress = Math.Round(_midiEvents * 100.0 / _totalMidiEvents);
-            }
-            else
-            {
-                _progress = 0.0;
-                _tracksProgress = 0.0;
-            }
+            _progress = isActive ? 0 : Math.Round(_processed * 100.0 / _all);
+            _tracksProgress = isActive ? 0 : Math.Round(_midiEvents * 100.0 / _totalMidiEvents);
 
             switch (intStatus)
             {
                 case ConvStatus.Prep:
                     _curStatus = "The converter is preparing itself for the conversion process...\n\nPlease wait.";
-                    _progress = 0;
-                    _tracksProgress = 0;
                     break;
 
                 case ConvStatus.Dead:
                     _curStatus = "The MIDI converter system died.\n\nOops!";
-                    _progress = 0;
-                    _tracksProgress = 0;
                     break;
 
                 case ConvStatus.SingleConv:
@@ -254,8 +240,7 @@ namespace OmniConverter
                     break;
             }
 
-            if ((intStatus == ConvStatus.SingleConv || intStatus == ConvStatus.MultiConv) &&
-                _cachedSettings.Program.AfterRenderAction == 5)
+            if (isActive)
                 _curStatus += $"\nElapsed time: {MiscFunctions.TimeSpanToHumanReadableTime(_convElapsedTime.Elapsed)}";
         }
 
@@ -320,7 +305,7 @@ namespace OmniConverter
         {
             List<ulong> totalEvents = new();
             foreach (MIDI midi in _midis)
-                totalEvents.Add(_cachedSettings.Render.PerTrackMode ? midi.TotalEventCountMulti : midi.TotalEventCountSingle);
+                totalEvents.Add(midi.TotalEventCount);
 
             _validator.SetTotalEventsCount(totalEvents);
         }
@@ -518,11 +503,11 @@ namespace OmniConverter
                 _customTitle = midi.Name;
                 string folder = _outputPath;
 
-                var midiData = midi.GetIterateTracksTimeBased().ToArray();
+                var midiData = midi.GetIterateTracksTimeBased();
                 var waveFormat = _audioRenderer.GetWaveFormat();
 
-                _validator.SetTotalMIDIEvents(midi.TotalEventCountMulti);
-                _validator.SetTotalTracks(midiData.Length);
+                _validator.SetTotalMIDIEvents(midi.TotalEventCount);
+                _validator.SetTotalTracks(midiData.Count());
 
                 using (MultiStreamMerger msm = new(waveFormat))
                 {
@@ -547,9 +532,9 @@ namespace OmniConverter
                             if (_cancToken.IsCancellationRequested)
                                 throw new OperationCanceledException();
 
-                            var midiTrack = midiData[track];
+                            var midiTrack = midiData.ElementAt(track);
 
-                            if (!midi.TrackHasNotes[track])
+                            if (!midiTrack.Any(x => x is NoteOnEvent))
                             {
                                 _validator.AddTrack();
                                 return;
@@ -850,7 +835,7 @@ namespace OmniConverter
             _file = midi.LoadedFile;
             _audioRenderer = audioRenderer;
             _events = events;
-            _eventsCount = track < 0 ? midi.TotalEventCountSingle : midi.EventCountsMulti[track];
+            _eventsCount = track < 0 ? midi.TotalEventCount : midi.EventCounts[track];
             _cachedSettings = _audioRenderer.GetCachedSettings();
             _length = midi.Length.TotalSeconds;
         }
