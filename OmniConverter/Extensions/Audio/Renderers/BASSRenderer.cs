@@ -2,10 +2,9 @@
 using ManagedBass;
 using ManagedBass.Fx;
 using ManagedBass.Midi;
-using Octokit;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
+using System.Runtime.InteropServices;
 
 // Written with help from Arduano
 
@@ -50,7 +49,9 @@ namespace OmniConverter
                 _bassArray = InitializeSoundFonts();
 
                 var tmp = BassMidi.CreateStream(16, BassFlags.Default, 0);
-                FlacPlug = Bass.PluginLoad($"{AppContext.BaseDirectory}/bassflac");
+                var unixPrefix = !RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+
+                FlacPlug = Bass.PluginLoad($"{AppContext.BaseDirectory}/{(unixPrefix ? "lib" : "")}bassflac");
 
                 if (tmp != 0)
                 {
@@ -190,10 +191,10 @@ namespace OmniConverter
     public class BASSRenderer : AudioRenderer
     {
         private readonly BassFlags Flags;
-        public int Handle { get; private set; } = 0;
 
-        private int VolHandle;
-        private BASSEngine reference;
+        private int _streamHandle = 0;
+        private int _volFx = 0;
+
         private VolumeFxParameters? VolParam = null;
         private MidiFontEx[]? SfArray = [];
 
@@ -201,11 +202,6 @@ namespace OmniConverter
         {
             if (UniqueID == string.Empty)
                 return;
-
-            if (bass == null)
-                return;
-                
-            reference = bass;
 
             bool isFloat = WaveFormat.WaveFormatTag == AudioEncoding.IeeeFloat;
             Flags = BassFlags.Decode | BassFlags.MidiDecayEnd;
@@ -216,23 +212,23 @@ namespace OmniConverter
             Flags |= _cachedSettings.BASS.NoteOff1 ? BassFlags.MidiNoteOff1 : BassFlags.Default;
             Flags |= isFloat ? BassFlags.Float : BassFlags.Default;
 
-            Handle = BassMidi.CreateStream(16, Flags, WaveFormat.SampleRate);
+            _streamHandle = BassMidi.CreateStream(16, Flags, WaveFormat.SampleRate);
             if (IsError("Unable to open MIDI stream."))
                 return;
 
             Debug.PrintToConsole(Debug.LogType.Message, $"{UniqueID} - Stream is open.");
 
-            VolHandle = Bass.ChannelSetFX(Handle, EffectType.Volume, 1);
+            _volFx = Bass.ChannelSetFX(_streamHandle, EffectType.Volume, 1);
             if (IsError("Unable to set volume FX."))
                 return;
 
-            Bass.ChannelSetAttribute(Handle, ChannelAttribute.MidiKill, Convert.ToDouble(_cachedSettings.Synth.KilledNoteFading));
+            Bass.ChannelSetAttribute(_streamHandle, ChannelAttribute.MidiKill, Convert.ToDouble(_cachedSettings.Synth.KilledNoteFading));
 
-            SfArray = reference.GetSoundFontsArray();
+            SfArray = bass.GetSoundFontsArray();
             if (SfArray != null)
             {
-                BassMidi.StreamSetFonts(Handle, SfArray, SfArray.Length);
-                BassMidi.StreamLoadSamples(Handle);
+                BassMidi.StreamSetFonts(_streamHandle, SfArray, SfArray.Length);
+                BassMidi.StreamLoadSamples(_streamHandle);
                 Debug.PrintToConsole(Debug.LogType.Message, $"{UniqueID} - Loaded {SfArray.Length} SoundFonts");
             }
 
@@ -243,16 +239,18 @@ namespace OmniConverter
             VolParam.fTarget = (float)_cachedSettings.Synth.Volume;
             VolParam.fTime = 0.0f;
             VolParam.lCurve = 1;
-            Bass.FXSetParameters(VolHandle, VolParam);
+            Bass.FXSetParameters(_volFx, VolParam);
 
             Initialized = true;
         }
 
         private bool IsError(string Error)
         {
-            if (Bass.LastError != 0)
+            var beId = Bass.LastError;
+
+            if (beId != 0)
             {
-                Debug.PrintToConsole(Debug.LogType.Error, $"{UniqueID} - {Error}.");
+                Debug.PrintToConsole(Debug.LogType.Error, $"{UniqueID} (BE{beId:X}) - {Error}.");
                 return true;
             }
 
@@ -270,7 +268,7 @@ namespace OmniConverter
                     var offsetBuff = buff + offset;
                     var len = (count * sizeof(float)) | (WaveFormat.BitsPerSample == 32 ? (int)DataFlags.Float : 0);
 
-                    ret = Bass.ChannelGetData(Handle, (nint)offsetBuff, len);
+                    ret = Bass.ChannelGetData(_streamHandle, (nint)offsetBuff, len);
                     if (ret == 0)
                     {
                         var BE = Bass.LastError;
@@ -286,13 +284,13 @@ namespace OmniConverter
 
         public override void SystemReset()
         {
-            BassMidi.StreamEvent(Handle, 0, MidiEventType.System, (int)MidiSystem.GS);
+            BassMidi.StreamEvent(_streamHandle, 0, MidiEventType.System, (int)MidiSystem.GS);
         }
 
-        public override bool SendCustomFXEvents(int channel, short reverb, short chorus) 
+        public override bool SendCustomCC(int channel, short reverb, short chorus) 
         {
-            var b1 = BassMidi.StreamEvent(Handle, channel, MidiEventType.Reverb, reverb);
-            var b2 = BassMidi.StreamEvent(Handle, channel, MidiEventType.Chorus, chorus);
+            var b1 = BassMidi.StreamEvent(_streamHandle, channel, MidiEventType.Reverb, reverb);
+            var b2 = BassMidi.StreamEvent(_streamHandle, channel, MidiEventType.Chorus, chorus);
             return b1 && b2;
         }
 
@@ -305,51 +303,51 @@ namespace OmniConverter
             int eventParams;
             var eventType = MidiEventType.Note;
 
-            switch ((MIDIEventType)(status & 0xF0))
+            switch ((EventType)(status & 0xF0))
             {
-                case MIDIEventType.NoteOn:
+                case EventType.NoteOn:
                     eventParams = param2 << 8 | param1;
                     break;
 
-                case MIDIEventType.NoteOff:
+                case EventType.NoteOff:
                     eventParams = param1;
                     break;
 
-                case MIDIEventType.Aftertouch:
+                case EventType.KeyPressure:
                     eventType = MidiEventType.KeyPressure;
                     eventParams = param2 << 8 | param1;
                     break;
 
-                case MIDIEventType.PatchChange:
+                case EventType.ProgramChange:
                     eventType = MidiEventType.Program;
                     eventParams = param1;
                     break;
 
-                case MIDIEventType.ChannelPressure:
+                case EventType.ChannelPressure:
                     eventType = MidiEventType.ChannelPressure;
                     eventParams = param1;
                     break;
 
-                case MIDIEventType.PitchBend:
+                case EventType.PitchBend:
                     eventType = MidiEventType.Pitch;
                     eventParams = param2 << 7 | param1;
                     break;
 
                 default:
-                    BassMidi.StreamEvents(Handle, MidiEventsMode.Raw | MidiEventsMode.NoRunningStatus, data, data.Length);
+                    BassMidi.StreamEvents(_streamHandle, MidiEventsMode.Raw | MidiEventsMode.NoRunningStatus, data, data.Length);
                     return;
             }
 
-            BassMidi.StreamEvent(Handle, status & 0xF, eventType, eventParams);
+            BassMidi.StreamEvent(_streamHandle, status & 0xF, eventType, eventParams);
         }
 
         public override void RefreshInfo()
         {
             float output = 0.0f;
-            Bass.ChannelGetAttribute(Handle, ChannelAttribute.MidiVoicesActive, out output);
+            Bass.ChannelGetAttribute(_streamHandle, ChannelAttribute.MidiVoicesActive, out output);
             ActiveVoices = (ulong)output;
 
-            Bass.ChannelGetAttribute(Handle, ChannelAttribute.CPUUsage, out output);
+            Bass.ChannelGetAttribute(_streamHandle, ChannelAttribute.CPUUsage, out output);
             RenderingTime = output;
         }
 
@@ -361,18 +359,18 @@ namespace OmniConverter
                 new MidiEvent() {EventType = MidiEventType.End, Channel = 0, Parameter = 0, Position = 0, Ticks = 0 },
             };
 
-            BassMidi.StreamEvents(Handle, MidiEventsMode.Raw | MidiEventsMode.Struct, ev);
+            BassMidi.StreamEvents(_streamHandle, MidiEventsMode.Raw | MidiEventsMode.Struct, ev);
         }
 
         public override long Position
         {
-            get { return Bass.ChannelGetPosition(Handle) / 4; }
+            get { return Bass.ChannelGetPosition(_streamHandle) / 4; }
             set { throw new NotSupportedException("Can't set position."); }
         }
 
         public override long Length
         {
-            get { return Bass.ChannelGetLength(Handle) / 4; }
+            get { return Bass.ChannelGetLength(_streamHandle) / 4; }
         }
 
         protected override void Dispose(bool disposing)
@@ -383,7 +381,7 @@ namespace OmniConverter
             if (disposing)
             {
                 lock (_lock)
-                    Bass.StreamFree(Handle);
+                    Bass.StreamFree(_streamHandle);
             }
 
             UniqueID = string.Empty;

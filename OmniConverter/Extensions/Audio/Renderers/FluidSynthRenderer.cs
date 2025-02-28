@@ -50,7 +50,6 @@ namespace OmniConverter
         }
 
         public NFluidsynth.Settings GetFluidSynthSettings() => _fluidSynthSettings;
-        public Settings GetConverterSettings() => _cachedSettings;
     }
 
     public class FluidSynthRenderer : AudioRenderer
@@ -67,12 +66,8 @@ namespace OmniConverter
         private unsafe float** bufPtr = null;
         private GCHandle? gcHandleBufL = null, gcHandleBufR = null, gcHandleBufPtr = null;
 
-        private FluidSynthEngine reference;
-
         public FluidSynthRenderer(FluidSynthEngine fluidsynth) : base(fluidsynth, false)
         {
-            reference = fluidsynth;
-
             if (UniqueID == string.Empty)
                 return;
 
@@ -81,8 +76,8 @@ namespace OmniConverter
 
             Debug.PrintToConsole(Debug.LogType.Message, $"Stream unique ID: {UniqueID}");
 
-            handle = new(reference.GetFluidSynthSettings());
-            var tmp = reference.GetConverterSettings();
+            handle = new(fluidsynth.GetFluidSynthSettings());
+            var tmp = fluidsynth.GetCachedSettings();
             var interp = FluidInterpolation.Linear;
 
             switch (tmp.Synth.Interpolation)
@@ -112,7 +107,7 @@ namespace OmniConverter
             noFx = _cachedSettings.Synth.DisableEffects;
 
             // FluidSynth "thread-safe API" moment
-            lock (reference.SFLock)
+            lock (fluidsynth.SFLock)
             {
                 foreach (var sf in tmp.SoundFontsList)
                 {
@@ -139,11 +134,6 @@ namespace OmniConverter
                 Debug.PrintToConsole(Debug.LogType.Message, $"{UniqueID} - Stream is open.");
                 Initialized = true;
             }
-        }
-
-        private bool IsError(string Error)
-        {
-            return false;
         }
 
         public override unsafe int Read(float[] buffer, int offset, long delta, int count)
@@ -200,12 +190,12 @@ namespace OmniConverter
             handle.SystemReset();
         }
 
-        public override bool SendCustomFXEvents(int channel, short reverb, short chorus)
+        public override bool SendCustomCC(int channel, short reverb, short chorus)
         {
             if (handle != null)
             {
-                handle?.CC(channel, 0x5B, reverb);
-                handle?.CC(channel, 0x5D, reverb);
+                handle.CC(channel, (int)ControllerType.ReverbCtrl, reverb);
+                handle.CC(channel, (int)ControllerType.ChorusCtrl, reverb);
 
                 return true;
             }
@@ -223,9 +213,9 @@ namespace OmniConverter
             var param1 = data[1];
             var param2 = data.Length >= 3 ? data[2] : (byte)0;
 
-            switch ((MIDIEventType)(status & 0xF0))
+            switch ((EventType)(status & 0xF0))
             {
-                case MIDIEventType.NoteOn:
+                case EventType.NoteOn:
                     if (param1 == 0)
                     {
                         handle.NoteOff(chan, param1);
@@ -233,51 +223,52 @@ namespace OmniConverter
                     else handle.NoteOn(chan, param1, param2);
                     return;
 
-                case MIDIEventType.NoteOff:
+                case EventType.NoteOff:
                     handle.NoteOff(chan, param1);
                     return;
 
-                case MIDIEventType.PatchChange:
+                case EventType.ProgramChange:
                     handle.ProgramChange(chan, param1);
                     return;
 
-                case MIDIEventType.ChannelPressure:
+                case EventType.ChannelPressure:
                     handle.ChannelPressure(chan, param1);
                     return;
 
-                case MIDIEventType.Aftertouch:
+                case EventType.KeyPressure:
                     handle.KeyPressure(chan, param1, param2);
                     return;
 
-                case MIDIEventType.CC:
+                case EventType.Controller:
                     handle.CC(chan, param1, param2);
                     return;
 
-                case MIDIEventType.PitchBend:
+                case EventType.PitchBend:
                     handle.PitchBend(chan, (param2 << 7) | param1);
                     return;
 
-                case MIDIEventType.SystemMessageStart:
+                case EventType.SystemExclusive:
                     {
-                        switch ((MIDIEventType)status)
+                        switch ((EventType)status)
                         {
-                            case MIDIEventType.SystemMessageStart:
+                            case EventType.SystemExclusive:
                                 {
-                                    byte[] refactor = new byte[data.Length - 2];
-                                    byte[] dummy = new byte[refactor.Length];
+                                    List<byte> sysExMsg = new();
 
-                                    for (int i = 1; i < data.Length - 1; i++)
-                                        refactor[i - 1] = data[i];
-                     
-                                    if (!handle.Sysex(refactor, 0, refactor.Length, dummy, 0, dummy.Length))
+                                    for (int i = 1; i < data.Length; i++)
                                     {
-                                        string sysexbuf = string.Empty;
+                                        var val = data[i];
 
-                                        foreach (byte ch in refactor)
-                                            sysexbuf += $"{ch:X}";
+                                        // Do this for malformed SysEx packets that might contain more than one EOX byte
+                                        if (val == (byte)EventType.EOX)
+                                            break;
 
-                                        Debug.PrintToConsole(Debug.LogType.Error, $"Invalid SysEx! >> {sysexbuf}");
+                                        sysExMsg.Add(val);
                                     }
+
+                                    var sysExArr = sysExMsg.ToArray();
+                                    if (!handle.Sysex(sysExArr, 0, sysExArr.Length, null, 0, 0))
+                                        Debug.PrintToConsole(Debug.LogType.Error, $"Unsupported SysEx! >> {BitConverter.ToString(sysExArr).Replace("-", "")}");
                                 }
                                 return;
 

@@ -1,7 +1,9 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using DynamicData;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -15,6 +17,13 @@ public partial class SettingsWindow : Window
     public SettingsWindow()
     {
         InitializeComponent();
+
+        SelectedRenderer.Items.Clear();
+
+        var engineIds = Enum.GetNames(typeof(EngineID));
+        for (int i = 0; i < engineIds.Length - 2; i++)
+            SelectedRenderer.Items.Add(engineIds[i]);
+
         Loaded += CheckSettings;
     }
 
@@ -62,13 +71,18 @@ public partial class SettingsWindow : Window
         XSynth_ThreadingSelection.SelectedIndex = ((int)Program.Settings.XSynth.Threading)
             .LimitToRange(XSynthSettings.ThreadingType.None, XSynthSettings.ThreadingType.Max);
 
-        BASS_MaxVoices.Value = Program.Settings.Synth.MaxVoices;
-        XSynth_MaxLayers.Value = Program.Settings.XSynth.MaxLayers;
-        BASS_DisableFX.IsChecked = Program.Settings.Synth.DisableEffects;
+        MaxVoices.Value = Program.Settings.Synth.MaxVoices;
+        DisableFX.IsChecked = Program.Settings.Synth.DisableEffects;
+        KilledNoteFading.IsChecked = Program.Settings.Synth.KilledNoteFading;
+
+        // BASS
         BASS_NoteOff1.IsChecked = Program.Settings.BASS.NoteOff1;
+
+        // XSynth
+        XSynth_MaxLayers.Value = Program.Settings.XSynth.MaxLayers;
         XSynth_UseEffects.IsChecked = Program.Settings.XSynth.UseEffects;
         XSynth_LinearEnv.IsChecked = Program.Settings.XSynth.LinearEnvelope;
-        KilledNoteFading.IsChecked = Program.Settings.Synth.KilledNoteFading;
+
         AudioLimiter.IsChecked = Program.Settings.Synth.AudioLimiter;
         AudioCodecChanged(sender, new SelectionChangedEventArgs(e.RoutedEvent, null, null));
 
@@ -155,8 +169,8 @@ public partial class SettingsWindow : Window
 
     private void MaxVoicesChanged(object? sender, NumericUpDownValueChangedEventArgs e)
     {
-        if (BASS_MaxVoices.Value > BASS_MaxVoices.Maximum)
-            BASS_MaxVoices.Value = BASS_MaxVoices.Maximum;
+        if (MaxVoices.Value > MaxVoices.Maximum)
+            MaxVoices.Value = MaxVoices.Maximum;
     }
 
     private void AudioCodecChanged(object? sender, SelectionChangedEventArgs e)
@@ -182,6 +196,7 @@ public partial class SettingsWindow : Window
                 XSynth_MaxLayers.Minimum = 0;
             else
                 XSynth_MaxLayers.Minimum = 1;
+
             XSynth_MaxLayers.Value = (bool)XSynth_NoLayerLimit.IsChecked ? 0 : Program.Settings.XSynth.MaxLayers;
             XSynth_MaxLayers.IsEnabled = !(bool)XSynth_NoLayerLimit.IsChecked;
         }
@@ -191,28 +206,30 @@ public partial class SettingsWindow : Window
     {
         if (SelectedRenderer != null)
         {
-            switch ((EngineID)SelectedRenderer.SelectedIndex)
+            var renderer = (EngineID)SelectedRenderer.SelectedIndex;
+            var isBass = renderer == EngineID.BASS;
+            var isXsynth = renderer == EngineID.XSynth;
+
+            switch (renderer)
             {
                 case EngineID.BASS:
                 case EngineID.FluidSynth:
-                    BASS_MaxVoices.Value = Program.Settings.Synth.MaxVoices;
-
-                    BASSSettingsPanel.IsVisible = true;
-                    XSynthSettingsPanel.IsVisible = false;
+                    MaxVoicesGrid.IsVisible = true;
+                    MaxVoices.Value = Program.Settings.Synth.MaxVoices;
                     break;
 
                 case EngineID.XSynth:
+                    MaxVoicesGrid.IsVisible = false;
                     XSynth_NoLayerLimit.IsChecked = Program.Settings.XSynth.MaxLayers == 0;
                     XSynth_MaxLayers.Value = Program.Settings.XSynth.MaxLayers;
-
-                    BASSSettingsPanel.IsVisible = false;
-                    XSynthSettingsPanel.IsVisible = true;
-
                     break;
 
                 default:
                     break;
             }
+
+            BASSSettingsPanel.IsVisible = isBass;
+            XSynthSettingsPanel.IsVisible = isXsynth;
         }
     }
 
@@ -324,8 +341,8 @@ public partial class SettingsWindow : Window
         if (item != null)
             Program.Settings.Synth.SampleRate = Convert.ToInt32(((ComboBoxItem)item).Content);
 
-        if (BASS_MaxVoices.Value != null)
-            Program.Settings.Synth.MaxVoices = (int)BASS_MaxVoices.Value;
+        if (MaxVoices.Value != null)
+            Program.Settings.Synth.MaxVoices = (int)MaxVoices.Value;
         if (XSynth_MaxLayers.Value != null)
             Program.Settings.XSynth.MaxLayers = (ulong)XSynth_MaxLayers.Value;
 
@@ -338,8 +355,8 @@ public partial class SettingsWindow : Window
         if (AudioBitrate.Value != null)
             Program.Settings.Encoder.AudioBitrate = (int)AudioBitrate.Value;
 
-        if (BASS_DisableFX.IsChecked != null)
-            Program.Settings.Synth.DisableEffects = (bool)BASS_DisableFX.IsChecked;
+        if (DisableFX.IsChecked != null)
+            Program.Settings.Synth.DisableEffects = (bool)DisableFX.IsChecked;
         if (BASS_NoteOff1.IsChecked != null)
             Program.Settings.BASS.NoteOff1 = (bool)BASS_NoteOff1.IsChecked;
 

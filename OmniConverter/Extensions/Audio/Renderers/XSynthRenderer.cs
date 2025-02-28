@@ -334,14 +334,11 @@ namespace OmniConverter
         public XSynth_ChannelGroup? handle { get; private set; } = null;
         private ulong sfCount = 0;
         private nint sfArray = nint.Zero;
-        private XSynthEngine reference;
         private GroupOptions groupOptions;
         private double dbVolume = 1.0;
 
         public XSynthRenderer(XSynthEngine xsynth) : base(xsynth, false)
         {
-            reference = xsynth;
-
             if (UniqueID == string.Empty)
                 return;
 
@@ -350,34 +347,29 @@ namespace OmniConverter
 
             Debug.PrintToConsole(Debug.LogType.Message, $"Stream unique ID: {UniqueID}");
 
-            groupOptions = reference.GetGroupOptions();
-            sfArray = reference.GetSoundFontsArray(out sfCount);
+            groupOptions = xsynth.GetGroupOptions();
+            sfArray = xsynth.GetSoundFontsArray(out sfCount);
 
             if (sfArray != nint.Zero)
             {
                 handle = ChannelGroup_Create(groupOptions);
 
-                reference.AddChannel((XSynth_ChannelGroup)handle);
+                xsynth.AddChannel((XSynth_ChannelGroup)handle);
                 ChannelGroup_SendConfigEventAll((XSynth_ChannelGroup)handle, ConfigEvent.SetLayers, (uint)_cachedSettings.XSynth.MaxLayers);
                 ChannelGroup_SetSoundfonts((XSynth_ChannelGroup)handle, sfArray, sfCount);
 
                 var tmp = ChannelGroup_GetStreamParams((XSynth_ChannelGroup)handle);
 
                 if (tmp.sample_rate != groupOptions.stream_params.sample_rate)
-                    throw new AccessViolationException();
+                    throw new ArgumentException("Sample rate from stream handle does not match groupOptions!");
 
                 if (tmp.audio_channels != groupOptions.stream_params.audio_channels)
-                    throw new AccessViolationException();
+                    throw new ArgumentException("Channel count from stream handle does not match groupOptions!");
 
                 Debug.PrintToConsole(Debug.LogType.Message, $"{UniqueID} - Stream is open.");
 
                 Initialized = true;
             }
-        }
-
-        private bool IsError(string Error)
-        {
-            return false;
         }
 
         public override unsafe int Read(float[] buffer, int offset, long delta, int count)
@@ -415,7 +407,7 @@ namespace OmniConverter
             ChannelGroup_SendAudioEventAll((XSynth_ChannelGroup)handle, AudioEvent.ProgramChange, 0);
         }
 
-        public override bool SendCustomFXEvents(int channel, short reverb, short chorus)
+        public override bool SendCustomCC(int channel, short reverb, short chorus)
         {
             return true;
         }
@@ -432,9 +424,9 @@ namespace OmniConverter
             var eventType = AudioEvent.NoteOn;
             int eventParams;
 
-            switch ((MIDIEventType)(status & 0xF0))
+            switch ((EventType)(status & 0xF0))
             {
-                case MIDIEventType.NoteOn:
+                case EventType.NoteOn:
                     if (param1 == 0)
                     {
                         eventType = AudioEvent.NoteOff;
@@ -443,22 +435,22 @@ namespace OmniConverter
                     else eventParams = (param2 << 8) | param1;
                     break;
 
-                case MIDIEventType.NoteOff:
+                case EventType.NoteOff:
                     eventType = AudioEvent.NoteOff;
                     eventParams = param1;
                     break;
 
-                case MIDIEventType.PatchChange:
+                case EventType.ProgramChange:
                     eventType = AudioEvent.ProgramChange;
                     eventParams = param1;
                     break;
 
-                case MIDIEventType.CC:
+                case EventType.Controller:
                     eventType = AudioEvent.Control;
                     eventParams = (param2 << 8) | param1;
                     break;
 
-                case MIDIEventType.PitchBend:
+                case EventType.PitchBend:
                     eventType = AudioEvent.Pitch;
                     eventParams = (param2 << 7) | param1;
                     break;

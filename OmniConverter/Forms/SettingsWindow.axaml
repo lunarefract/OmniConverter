@@ -22,14 +22,16 @@
 							<Label Grid.Column="0" Content="Synthesizer" VerticalAlignment="Center"/>
 							<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Grid.Column="1">
 								<ComboBox Name="SelectedRenderer" Width="180" SelectedIndex="0" MaxDropDownHeight="200" SelectionChanged="AudioRendererChanged" >
-									<ComboBoxItem>BASS</ComboBoxItem>
-									<ComboBoxItem>XSynth</ComboBoxItem>
-									<ComboBoxItem>FluidSynth</ComboBoxItem>
+									<ComboBoxItem>null</ComboBoxItem>
 								</ComboBox>
 							</StackPanel>
 						</Grid>
 						<ctrl:GroupBox Header="Global Settings" Theme="{StaticResource GroupBoxClassic}" Margin="0, 16, 0, 0" >
 							<StackPanel>
+								<Grid Name="MaxVoicesGrid" ColumnDefinitions="1*, 2*" Margin="2">
+									<Label Grid.Column="0" Content="Voice limit" VerticalAlignment="Center"/>
+									<NumericUpDown Name="MaxVoices" HorizontalAlignment="Right" Width="180" FormatString="0" Value="100000" Minimum="1" Maximum="14000000" ValueChanged="MaxVoicesChanged" Grid.Column="1" />
+								</Grid>
 								<Grid ColumnDefinitions="4*, 1*" Margin="2">
 									<Label Grid.Column="0" Content="Sample rate" VerticalAlignment="Center"/>
 									<ComboBox Name="SampleRate" HorizontalAlignment="Right" Grid.Column="1" Width="180" SelectedIndex="5" MaxDropDownHeight="200">
@@ -59,15 +61,11 @@
 									</ComboBox>
 								</Grid>
 								<CheckBox Name="KilledNoteFading" Content="Disable sample fade out when killing a note" Margin="2" />
+								<CheckBox Name="DisableFX" Content="Disable sound FXs (Reverb, Chorus etc.)" Margin="2" />
 							</StackPanel>
 						</ctrl:GroupBox>
 						<ctrl:GroupBox Name="BASSSettingsPanel" Header="BASS Settings" Theme="{StaticResource GroupBoxClassic}" Margin="0, 16, 0, 0" >
 							<StackPanel>
-								<Grid ColumnDefinitions="1*, 2*" Margin="2">
-									<Label Grid.Column="0" Content="Voice limit" VerticalAlignment="Center"/>
-									<NumericUpDown Name="BASS_MaxVoices" HorizontalAlignment="Right" Width="180" FormatString="0" Value="100000" Minimum="1" Maximum="14000000" ValueChanged="MaxVoicesChanged" Grid.Column="1" />
-								</Grid>
-								<CheckBox Name="BASS_DisableFX" Content="Disable sound FXs (Reverb, Chorus etc.)" Margin="2" />
 								<CheckBox Name="BASS_NoteOff1" Content="Follow overlaps when processing note off events" Margin="2" />
 							</StackPanel>
 						</ctrl:GroupBox>

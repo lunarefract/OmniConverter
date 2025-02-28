@@ -3,7 +3,6 @@ using Avalonia.Threading;
 using CSCore;
 using CSCore.Codecs.WAV;
 using FFMpegCore;
-using FFMpegCore.Enums;
 using MIDIModificationFramework;
 using MIDIModificationFramework.MIDIEvents;
 using System;
@@ -199,6 +198,21 @@ namespace OmniConverter
             ulong _processed = _validator.GetProcessedEvents();
             ulong _all = _validator.GetTotalEvents();
 
+            if (intStatus == ConvStatus.Idle ||
+                intStatus == ConvStatus.Prep ||
+                intStatus == ConvStatus.Dead)
+            {
+                _progress = Math.Round(_processed * 100.0 / _all);
+
+                if (_cachedSettings.Render.PerTrackMode)
+                    _tracksProgress = Math.Round(_midiEvents * 100.0 / _totalMidiEvents);
+            }
+            else
+            {
+                _progress = 0.0;
+                _tracksProgress = 0.0;
+            }
+
             switch (intStatus)
             {
                 case ConvStatus.Prep:
@@ -218,10 +232,6 @@ namespace OmniConverter
                         $"{_valid + _nonvalid:N0} file(s) out of {_total:N0} have been converted.\n\n" +
                         $"Please wait...";
 
-                    if (_cachedSettings.Program.AfterRenderAction == 5)
-                        _curStatus += $"\nElapsed time: {MiscFunctions.TimeSpanToHumanReadableTime(_convElapsedTime.Elapsed)}";
-
-                    _progress = Math.Round(_processed * 100.0 / _all);
                     break;
 
                 case ConvStatus.MultiConv:
@@ -230,28 +240,23 @@ namespace OmniConverter
                         $"Rendered {_curTrack:N0} track(s) out of {_tracks:N0}.\n" +
                         $"Please wait...";
 
-                    if (_cachedSettings.Program.AfterRenderAction == 5)
-                        _curStatus += $"\nElapsed time: {MiscFunctions.TimeSpanToHumanReadableTime(_convElapsedTime.Elapsed)}";
-
-                    _progress = Math.Round(_processed * 100.0 / _all);
-                    _tracksProgress = Math.Round(_midiEvents * 100.0 / _totalMidiEvents);
                     break;
 
                 case ConvStatus.AudioOut:
                     _curStatus = "Writing audio file to disk.\n\nPlease do not turn off the computer...";
-                    _progress = Math.Round(_processed * 100.0 / _all);
-                    _tracksProgress = Math.Round(_midiEvents * 100.0 / _totalMidiEvents);
                     break;
 
                 case ConvStatus.EncodingAudio:
                     _curStatus = $"Encoding audio to {_cachedSettings.Encoder.AudioCodec.ToExtension()}.\n\nPlease do not turn off the computer...";
-                    _progress = Math.Round(_processed * 100.0 / _all);
-                    _tracksProgress = Math.Round(_midiEvents * 100.0 / _totalMidiEvents);
                     break;
 
                 default:
                     break;
             }
+
+            if ((intStatus == ConvStatus.SingleConv || intStatus == ConvStatus.MultiConv) &&
+                _cachedSettings.Program.AfterRenderAction == 5)
+                _curStatus += $"\nElapsed time: {MiscFunctions.TimeSpanToHumanReadableTime(_convElapsedTime.Elapsed)}";
         }
 
         private void ConversionFunc()
@@ -890,20 +895,13 @@ namespace OmniConverter
                 {
                     // _midiRenderer.SystemReset();
 
-                    var waveFormat = _midiRenderer.WaveFormat;
+                    var waveFormat = _audioRenderer.GetWaveFormat();
                     float[] buffer = new float[256 * waveFormat.BlockAlign];
                     long prevWriteTime = 0;
                     double deltaTime = 0;
                     byte[] scratch = new byte[16];
 
                     Debug.PrintToConsole(Debug.LogType.Message, $"Initialized {_midiRenderer.UniqueID}.");
-
-                    // Prepare stream
-                    if (_cachedSettings.Event.OverrideEffects)
-                    {
-                        for (int i = 0; i <= 15; i++)
-                            _midiRenderer.SendCustomFXEvents(i, _cachedSettings.Event.ReverbVal, _cachedSettings.Event.ChorusVal);
-                    }
 
                     if (_events != null)
                     {
@@ -952,9 +950,15 @@ namespace OmniConverter
 
                             switch (e)
                             {
-                                case ControlChangeEvent ev:
-                                    if (_cachedSettings.Event.OverrideEffects && (ev.Controller == 0x5B || ev.Controller == 0x5D))
-                                        break;
+                                case ControlChangeEvent:
+                                    ControllerType ctrl = (ControllerType)eb[1];
+
+                                    if (_cachedSettings.Event.OverrideEffects && 
+                                        (ctrl == ControllerType.ReverbCtrl || ctrl == ControllerType.ChorusCtrl))
+                                    {
+                                        for (int i = 0; i <= 15; i++)
+                                            _midiRenderer.SendCustomCC(i, _cachedSettings.Event.ReverbVal, _cachedSettings.Event.ChorusVal);
+                                    }
 
                                     goto default;
 
@@ -964,7 +968,7 @@ namespace OmniConverter
 
                                     break;
 
-                                case NoteOnEvent non:
+                                case NoteOnEvent:
                                     playedNotes++;
 
                                     if (_cachedSettings.Event.FilterVelocity && eb[2] >= _cachedSettings.Event.VelocityLow && eb[2] <= _cachedSettings.Event.VelocityHigh)
@@ -975,7 +979,7 @@ namespace OmniConverter
 
                                     goto default;
 
-                                case NoteOffEvent noff:
+                                case NoteOffEvent:
                                     if (_cachedSettings.Event.FilterKey && (eb[1] < _cachedSettings.Event.KeyLow || eb[1] > _cachedSettings.Event.KeyHigh))
                                         return;
 
