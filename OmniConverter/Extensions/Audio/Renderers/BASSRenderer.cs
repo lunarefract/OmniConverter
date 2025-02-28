@@ -17,33 +17,6 @@ namespace OmniConverter
 
         public BASSEngine(Settings settings) : base(settings, false)
         {
-            /*                                                                                                                                                                            
-                                -+++------.                             
-                           -++###+#++++++++++#+++-                      
-                       ++##+-..        -#+-    .++#++                   
-                    -+#+.              .++.        .+#+-                
-                   +#+.                              .+++               
-                  ++#+++.                              .+++             
-                   ##++++####+-.                         -#+-           
-                         +#- -+++##++-                    .+++-         
-                               .+- ++.                      .##+        
-                           .   +- +#+                         +##.      
-                     ++.  ++++++++#+          KHANG!!!         .+++     
-                    -++#+++++-.                                  -++    
-                     ++-                                           +    
-                     -++++++++++++++++.                                 
-                        .------------#+                                 
-                                    -++.                                
-                                     +#-        --                      
-                                   +#+#+     .++##+                     
-                                -+#+- ++.   +++. .#+.                   
-                               +++..-+#+-  +#- -++#+#.                  
-                               ++++#+++++ -+++#+-.                      
-                                 .    .#+  -+-                          
-                                       ++-                              
-                                       -++.                             
-            */
-
             if (Bass.Init(Bass.NoSoundDevice, _waveFormat.SampleRate, DeviceInitFlags.Default))
             {
                 _bassArray = InitializeSoundFonts();
@@ -297,13 +270,16 @@ namespace OmniConverter
         public override void SendEvent(byte[] data)
         {
             var status = data[0];
+
+            var isSysEx = (EventType)status == EventType.SystemExclusive;
+            var type = (EventType)(status & 0xF0);
             var param1 = data.Length >= 2 ? data[1] : 0;
             var param2 = data.Length >= 3 ? data[2] : 0;
-            
+
             int eventParams;
             var eventType = MidiEventType.Note;
 
-            switch ((EventType)(status & 0xF0))
+            switch (type)
             {
                 case EventType.NoteOn:
                     eventParams = param2 << 8 | param1;
@@ -334,11 +310,28 @@ namespace OmniConverter
                     break;
 
                 default:
-                    BassMidi.StreamEvents(_streamHandle, MidiEventsMode.Raw | MidiEventsMode.NoRunningStatus, data, data.Length);
+                    var ret = BassMidi.StreamEvents(_streamHandle, MidiEventsMode.Raw | MidiEventsMode.NoRunningStatus, data, data.Length);
+
+                    if (ret == -1 || (isSysEx && ret < 1))
+                        Debug.PrintToConsole(Debug.LogType.Error, $"Unsupported {(isSysEx ? "SysEx" : "data")}! >> {BitConverter.ToString(data).Replace("-", "")}");
+
                     return;
             }
 
-            BassMidi.StreamEvent(_streamHandle, status & 0xF, eventType, eventParams);
+            var success = BassMidi.StreamEvent(_streamHandle, status & 0xF, eventType, eventParams);
+
+            if (!success)
+            {
+                switch (type)
+                {
+                    case EventType.Controller:
+                        Debug.PrintToConsole(Debug.LogType.Error, $"Unsupported CC! >> {(ControllerType)param1}");
+                        break;
+
+                    default:
+                        break;
+                }
+            }
         }
 
         public override void RefreshInfo()

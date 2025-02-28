@@ -209,11 +209,12 @@ namespace OmniConverter
                 return;
 
             var status = data[0];
+            var type = (EventType)(status & 0xF0);
             var chan = status & 0xF;
             var param1 = data[1];
             var param2 = data.Length >= 3 ? data[2] : (byte)0;
 
-            switch ((EventType)(status & 0xF0))
+            switch (type)
             {
                 case EventType.NoteOn:
                     if (param1 == 0)
@@ -240,7 +241,9 @@ namespace OmniConverter
                     return;
 
                 case EventType.Controller:
-                    handle.CC(chan, param1, param2);
+                    if (!handle.CC(chan, param1, param2))
+                        Debug.PrintToConsole(Debug.LogType.Error, $"Unsupported CC! >> {(ControllerType)param1}");
+
                     return;
 
                 case EventType.PitchBend:

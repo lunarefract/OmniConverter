@@ -11,8 +11,6 @@ namespace OmniConverter
     {
         private const string XSynthLib = "xsynth";
 
-        public const uint APIVersion = 0x300;
-
         public enum AudioEvent : ushort
         {
             NoteOn = 0,
@@ -164,7 +162,8 @@ namespace OmniConverter
         [DllImport(XSynthLib, EntryPoint = "XSynth_Soundfont_Remove", CallingConvention = CallingConvention.Cdecl)]
         public static extern void Soundfont_Remove(XSynth_Soundfont id);
 
-        public static Version Version => MiscFunctions.ConvertIntToVersion((int)GetVersionInt());
+        public static Version LibraryVersion => MiscFunctions.ConvertIntToVersion((int)GetVersionInt());
+        public static Version APIVersion => new Version(0, 3, 0 ,0);
     }
 
     public class XSynthEngine : AudioEngine
@@ -179,12 +178,8 @@ namespace OmniConverter
 
         public unsafe XSynthEngine(Settings settings) : base(settings, false)
         {
-            var libraryVersion = GetVersionInt();
-            if (libraryVersion >> 8 != APIVersion >> 8)
-            {
-                var neededVer = MiscFunctions.ConvertIntToVersion((int)APIVersion);
-                throw new Exception($"Unsupported version of XSynth loaded. Please use version {neededVer.Major}.{neededVer.Minor}.x");
-            }
+            if (LibraryVersion.Major != APIVersion.Major)
+                throw new Exception($"Unsupported version of XSynth loaded. Please use version {APIVersion.Major}.{APIVersion.Minor}.x");
 
             Debug.PrintToConsole(Debug.LogType.Message, $"Preparing XSynth...");
 

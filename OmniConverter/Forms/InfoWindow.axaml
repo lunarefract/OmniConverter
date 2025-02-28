@@ -27,18 +27,7 @@
 				</Grid>
 				<Separator />
 				<TextBlock Grid.Row="0" Name="CopyrightText">
-					Copyright Ⓒ 2024 Keppy's Software and Arduano
-					<LineBreak/>
-					Free MIDI converter for Microsoft Windows, Linux and macOS
-					<LineBreak/>
-					<LineBreak/>
-					This software is open-source.
-					<LineBreak/>
-					Redistribution and use of this code or any derivative works are permitted
-					<LineBreak/>
-					provided that specific conditions are met.
-					<LineBreak/>
-					Click the blue note button to see the license.
+					EMPTY
 				</TextBlock>
 			</StackPanel>
 			<Grid Grid.Row="1" RowDefinitions="1*, 32">

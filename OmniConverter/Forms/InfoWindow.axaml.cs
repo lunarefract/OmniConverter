@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -12,23 +12,38 @@ namespace OmniConverter;
 
 public partial class InfoWindow : Window
 {
+    private string BleBleBleBlaBlaBla =
+        "Copyright Ⓒ DATE_YEAR Keppy's Software & Black MIDI Devs\n" +
+        "Free MIDI converter for 64-bit Windows, Linux and macOS\n\n" +
+        "This software is open-source.\n" +
+        "Redistribution and use of this code or any derivative works\n" +
+        "are permitted provided that specific conditions are met.\n" +
+        "Click the blue note button to see the license.";
+    
     public InfoWindow()
     {
         InitializeComponent();
 
+        Loaded += FillUpInfo;
+    }
+
+    private void FillUpInfo(object? sender, RoutedEventArgs e)
+    {
+        var year = DateTime.Now.Year.LimitToRange(2024, 9999);
+
         var pp = Environment.ProcessPath;
         var cv = Assembly.GetExecutingAssembly().GetName().Version;
-        bool isDev = false;
+        var isDev = false;
 
         var dummy = new Version(0, 0, 0, 0);
-        Version? bassVer = dummy;
-        Version? bmidiVer = dummy;
-        Version? xsynthVer = dummy;
-        Version convVer = cv != null ? cv : dummy;
+        var bassVer = dummy;
+        var bmidiVer = dummy;
+        var xsynthVer = dummy;
+        var convVer = cv != null ? cv : dummy;
 
         try { bassVer = Bass.Version; } catch { }
         try { bmidiVer = BassMidi.Version; } catch { }
-        try { xsynthVer = XSynth.Version; } catch { }
+        try { xsynthVer = XSynth.LibraryVersion; } catch { }
 
         if (pp != null)
         {
@@ -45,6 +60,8 @@ public partial class InfoWindow : Window
         BASSVersion.Content = MiscFunctions.ReturnAssemblyVersion(string.Empty, "Rev. ", [bassVer.Major, bassVer.Minor, bassVer.Build, bassVer.Revision]);
         BMIDIVersion.Content = MiscFunctions.ReturnAssemblyVersion(string.Empty, "Rev. ", [bmidiVer.Major, bmidiVer.Minor, bmidiVer.Build, bmidiVer.Revision]);
         XSynthVersion.Content = MiscFunctions.ReturnAssemblyVersion(string.Empty, "Rev. ", [xsynthVer.Major, xsynthVer.Minor, xsynthVer.Build, xsynthVer.Revision]);
+
+        CopyrightText.Text = BleBleBleBlaBlaBla.Replace("DATE_YEAR", $"{year}");
 
         SetBranchColor();
     }
