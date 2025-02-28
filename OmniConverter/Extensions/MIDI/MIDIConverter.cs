@@ -886,6 +886,7 @@ namespace OmniConverter
                     long prevWriteTime = 0;
                     double deltaTime = 0;
                     byte[] scratch = new byte[16];
+                    bool notePlayed = false;
 
                     Debug.PrintToConsole(Debug.LogType.Message, $"Initialized {_midiRenderer.UniqueID}.");
 
@@ -904,6 +905,8 @@ namespace OmniConverter
 
                             if (e is UndefinedEvent)
                                 continue;
+                            else if (!notePlayed && e is NoteOnEvent)
+                                notePlayed = true;
 
                             var eb = e.GetData(scratch);
 
@@ -922,16 +925,23 @@ namespace OmniConverter
                             if (writeTime > prevWriteTime) // <<<<< EVER!!!!!!!!!
                                 prevWriteTime = writeTime;
 
-                            while (requestedData > 0)
+                            if (notePlayed)
                             {
-                                var isSmallChunk = requestedData < buffer.Length;
-                                var readData = _midiRenderer.Read(buffer, 0, requestedData, isSmallChunk ? requestedData : buffer.Length);
-
-                                if (readData > 0)
+                                while (requestedData > 0)
                                 {
-                                    output.Write(buffer, 0, isSmallChunk ? requestedData : buffer.Length);
-                                    requestedData = isSmallChunk ? 0 : requestedData - buffer.Length;
+                                    var isSmallChunk = requestedData < buffer.Length;
+                                    var readData = _midiRenderer.Read(buffer, 0, requestedData, isSmallChunk ? requestedData : buffer.Length);
+
+                                    if (readData > 0)
+                                    {
+                                        output.Write(buffer, 0, isSmallChunk ? requestedData : buffer.Length);
+                                        requestedData = isSmallChunk ? 0 : requestedData - buffer.Length;
+                                    }
                                 }
+                            }
+                            else
+                            {
+                                output.Skip(requestedData);
                             }
 
                             switch (e)

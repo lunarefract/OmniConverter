@@ -11,37 +11,8 @@ namespace OmniConverter
     public unsafe interface ISampleWriter
     {
         void Write(float[] buffer, int offset, int count);
-        void Write(float* buffer, int offset, int count);
+        void Skip(int count);
         void Flush();
-    }
-
-    public sealed class WaveSampleWriter : ISampleWriter, IDisposable
-    {
-        WaveWriter writer;
-
-        public WaveSampleWriter(WaveWriter writer)
-        {
-            this.writer = writer;
-        }
-
-        public int Position { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-
-        public void Dispose()
-        {
-            writer.Dispose();
-        }
-
-        public void Write(float[] buffer, int offset, int count)
-        {
-            writer.WriteSamples(buffer, offset, count);
-        }
-
-        public unsafe void Write(float* buffer, int offset, int count)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void Flush() { }
     }
 
     public sealed class MultiStreamMerger : ISampleSource
@@ -98,21 +69,12 @@ namespace OmniConverter
                 }
             }
 
-            public unsafe void Write(float* buffer, int offset, int count)
+            public unsafe void Skip(int count)
             {
-                int remaining = count;
-
-                while (remaining != 0)
+                lock (Stream)
                 {
-                    int chunk = Math.Min(remaining, BUF_SIZE - bufPos);
-                    Marshal.Copy((IntPtr)buffer + offset * 4, buf, bufPos, chunk);
-
-                    offset += chunk;
-                    bufPos += chunk;
-                    remaining -= chunk;
-
-                    if (bufPos == BUF_SIZE)
-                        Flush();
+                    ResizeStream(streamPos + count);
+                    streamPos += count;
                 }
             }
 
