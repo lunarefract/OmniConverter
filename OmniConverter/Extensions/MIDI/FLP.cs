@@ -49,7 +49,7 @@ namespace OmniConverter
         static bool ForceColor { get; set; }
         static bool DisableEcho { get; set; }
 
-        public FLP(MidiFile? loadedFile, IEnumerable<MIDIEvent> metaEvent, string name, long id, string path, TimeSpan timeLength, int tracks, long noteCount, ulong fileSize, ulong[] eventCounts, double ppqn) : base(loadedFile, metaEvent, name, id, path, timeLength, tracks, noteCount, fileSize, eventCounts, ppqn)
+        public FLP(MidiFile? loadedFile, IEnumerable<MIDIEvent>[] metaEvent, string name, long id, string path, TimeSpan timeLength, int tracks, long noteCount, ulong fileSize, ulong[] eventCountsSingle, ulong[] eventCountsMulti, double ppqn, bool[] trackHasNotes) : base(loadedFile, metaEvent, name, id, path, timeLength, tracks, noteCount, fileSize, eventCountsSingle, eventCountsMulti, ppqn, trackHasNotes)
         { }
 
         public FLP(string test) : base(test)
@@ -232,8 +232,8 @@ namespace OmniConverter
                 long noteCount = 0;
 
                 var midTracks = midi.IterateTracks();
-                var midiMetaEvents = GetMetaEvents(midTracks, parallelOptions, ref maxTicks, ref noteCount, out ulong[] eventCounts, progressCallback);
-                var mergedMetaEvents = midiMetaEvents.MergeAll().ToArray();
+                var midiMetaEvents = GetMetaEvents(midTracks, parallelOptions, ref maxTicks, ref noteCount, out ulong[] eventCountsSingle, out ulong[] eventCountsMulti, out bool[] trackHasNotes, progressCallback);
+                var mergedMetaEvents = midiMetaEvents.MergeAll();
 
                 // get midi length in seconds
                 var mergedWithLength = mergedMetaEvents.MergeWith(new[] { new EndOfExclusiveEvent(maxTicks) });
@@ -243,7 +243,7 @@ namespace OmniConverter
                     seconds += e.DeltaTime;
                 }
 
-                return new FLP(midi, mergedMetaEvents, name, id, filePath, TimeSpan.FromSeconds(seconds), midi.TrackCount, noteCount, (ulong)(new FileInfo(filePath).Length), eventCounts, midi.PPQ);
+                return new FLP(midi, midiMetaEvents, name, id, filePath, TimeSpan.FromSeconds(seconds), midi.TrackCount, noteCount, (ulong)(new FileInfo(filePath).Length), eventCountsSingle, eventCountsMulti, midi.PPQ, trackHasNotes);
             }
             catch (OperationCanceledException) { }
             catch (Exception e)

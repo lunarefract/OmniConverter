@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace OmniConverter
@@ -51,7 +52,6 @@ namespace OmniConverter
 
     public class MIDI : ObservableObject
     {
-        public int MetaEventsCount => _metaEvent.Count();
         public string Name { get => _name; }
         public long ID { get => _id; }
         public string Path { get => _path; }
@@ -61,22 +61,33 @@ namespace OmniConverter
         public ulong Size { get => _fileSize; }
         public string HumanReadableSize { get => MiscFunctions.BytesToHumanReadableSize(_fileSize); }
         public MidiFile? LoadedFile { get => _loadedFile; }
-        public ulong[] EventCounts { get => _eventCounts; }
+        public ulong[] EventCountsMulti { get => _eventCountsMulti; }
         public double PPQ { get => _ppqn; }
-        public ulong TotalEventCount {
+        public ulong TotalEventCountSingle {
             get
             {
                 ulong sum = 0;
-                for (int i = 0; i <  _eventCounts.Length; i++)
-                    sum += _eventCounts[i];
+                for (int i = 0; i <  _eventCountsSingle.Length; i++)
+                    sum += _eventCountsSingle[i];
                 return sum;
             }
         }
+        public ulong TotalEventCountMulti
+        {
+            get
+            {
+                ulong sum = 0;
+                for (int i = 0; i < _eventCountsMulti.Length; i++)
+                    sum += _eventCountsMulti[i];
+                return sum;
+            }
+        }
+        public bool[] TrackHasNotes => _trackHasNotes;
 
         public string HumanReadableTime { get => MiscFunctions.TimeSpanToHumanReadableTime(_timeLength); }
 
         private MidiFile? _loadedFile;
-        private IEnumerable<MIDIEvent> _metaEvent;
+        private IEnumerable<MIDIEvent>[] _metaEvent;
         private bool _disposed = false;
         private string _name;
         private long _id;
@@ -85,10 +96,12 @@ namespace OmniConverter
         private int _tracks;
         private long _noteCount;
         private ulong _fileSize;
-        private ulong[] _eventCounts;
+        private ulong[] _eventCountsSingle;
+        private ulong[] _eventCountsMulti;
         private double _ppqn;
+        private bool[] _trackHasNotes;
 
-        public MIDI(MidiFile? loadedFile, IEnumerable<MIDIEvent> metaEvent, string name, long id, string path, TimeSpan timeLength, int tracks, long noteCount, ulong fileSize, ulong[] eventCounts, double ppqn)
+        public MIDI(MidiFile? loadedFile, IEnumerable<MIDIEvent>[] metaEvent, string name, long id, string path, TimeSpan timeLength, int tracks, long noteCount, ulong fileSize, ulong[] eventCountsSingle, ulong[] eventCountsMulti, double ppqn, bool[] trackHasNotes)
         {
             _loadedFile = loadedFile;
             _metaEvent = metaEvent;
@@ -99,8 +112,10 @@ namespace OmniConverter
             _tracks = tracks;
             _noteCount = noteCount;
             _fileSize = fileSize;
-            _eventCounts = eventCounts;
+            _eventCountsSingle = eventCountsSingle;
+            _eventCountsMulti = eventCountsMulti;
             _ppqn = ppqn;
+            _trackHasNotes = trackHasNotes;
         }
 
         public MIDI(string test)
@@ -108,28 +123,35 @@ namespace OmniConverter
             _name = test;
         }
 
-        public IEnumerable<MIDIEvent> GetSingleTrackTimeBased(int track) =>
-            _loadedFile.GetTrackUnsafe(track).MergeWith(_metaEvent).MakeTimeBased(_loadedFile.PPQ);
-
         public IEnumerable<MIDIEvent> GetFullMIDITimeBased() =>
             _loadedFile.IterateTracks().MergeAll().MakeTimeBased(_loadedFile.PPQ);
 
         public IEnumerable<IEnumerable<MIDIEvent>> GetIterateTracksTimeBased() =>
-            _loadedFile.IterateTracks().Select(track => track.MergeWith(_metaEvent).MakeTimeBased(_loadedFile.PPQ));
+            _loadedFile.IterateTracks().Select((track, i) =>
+            {
+                // Try to pre-merge these events to avoid unnecessary allocations during conversion
+                var before = _metaEvent[..i].MergeAll().ToArray().AsEnumerable();
+                var after = _metaEvent[(i + 1)..].MergeAll().ToArray().AsEnumerable();
 
-        public static List<IEnumerable<MIDIEvent>> GetMetaEvents(IEnumerable<IEnumerable<MIDIEvent>> tracks, ParallelOptions parallelOptions, ref double maxTicks, ref long noteCount, out ulong[] eventCounts, Action<int, int> progressCallback)
+                return new[] { before, track, after }.MergeAll().MakeTimeBased(_loadedFile.PPQ);
+            });
+
+        public static IEnumerable<MIDIEvent>[] GetMetaEvents(IEnumerable<IEnumerable<MIDIEvent>> tracks, ParallelOptions parallelOptions, ref double maxTicks, ref long noteCount, out ulong[] eventCountsSingle, out ulong[] eventCountsMulti, out bool[] trackHasNotes, Action<int, int> progressCallback)
         {
             object l = new object();
 
-            var midiMetaEvents = new List<IEnumerable<MIDIEvent>>();
+            var trackCount = tracks.Count();
+            var midiMetaEvents = new IEnumerable<MIDIEvent>[trackCount];
             int tracksParsed = 0;
-            var metaEventCounts = new ulong[tracks.Count()];
+            var metaEventCounts = new ulong[trackCount];
             long tNoteCount = 0;
             double tMaxTicks = 0;
-            var tEventCounts = new ulong[tracks.Count()];
+            var tEventCountsSingle = new ulong[trackCount];
+            var tEventCountsMulti = new ulong[trackCount];
+            var tTrackHasNotes = new bool[trackCount];
 
             // loop over all tracks in parallel
-            Parallel.For(tracks.Count(), parallelOptions, T =>
+            Parallel.For(trackCount, parallelOptions, T =>
             {
                 double time = 0.0;
                 int nc = 0;
@@ -143,7 +165,15 @@ namespace OmniConverter
                     var tr = tracks.ElementAt(T);
 
                     if (tr == null)
+                    {
+                        Interlocked.Increment(ref tracksParsed);
+                        midiMetaEvents[T] = trackMetaEvents;
+                        lock (l)
+                        {
+                            progressCallback(tracksParsed, trackCount);
+                        }
                         return;
+                    }
 
                     foreach (var e in tr)
                     {
@@ -166,10 +196,12 @@ namespace OmniConverter
                             case ChannelPressureEvent cpev:
                             case PitchWheelChangeEvent pwcev:
                             case SystemExclusiveMessageEvent sysexev:
+                            case PolyphonicKeyPressureEvent pkpev:
                                 e.DeltaTime += delta;
                                 delta = 0;
                                 trackMetaEvents.Add(e);
-                                metaEventCount++;
+                                if (!(e is TempoEvent))
+                                    metaEventCount++;
                                 break;
 
                             default:
@@ -184,27 +216,31 @@ namespace OmniConverter
                     Debug.PrintToConsole(Debug.LogType.Error, e.ToString());
                 }
 
+                Interlocked.Increment(ref tracksParsed);
+                Interlocked.Add(ref tNoteCount, nc);
+                midiMetaEvents[T] = trackMetaEvents;
+                tEventCountsSingle[T] = eventCount + metaEventCount;
+                tEventCountsMulti[T] = eventCount;
+                metaEventCounts[T] = metaEventCount;
+                tTrackHasNotes[T] = nc != 0;
                 lock (l)
                 {
-                    tracksParsed++;
-                    tNoteCount += nc;
                     if (tMaxTicks < time) tMaxTicks = time;
-                    midiMetaEvents.Add(trackMetaEvents);
-                    tEventCounts[T] = eventCount;
-                    metaEventCounts[T] = metaEventCount;
-                    progressCallback(tracksParsed, tracks.Count());
+                    progressCallback(tracksParsed, trackCount);
                 }
             });
 
             ulong totalMeta = 0;
-            for (int i = 0; i < tracks.Count(); i++)
+            for (int i = 0; i < trackCount; i++)
                 totalMeta += metaEventCounts[i];
-            for (int i = 0; i < tracks.Count(); i++)
-                tEventCounts[i] += totalMeta;
+            for (int i = 0; i < trackCount; i++)
+                tEventCountsMulti[i] += totalMeta;
 
             noteCount = tNoteCount;
             maxTicks = tMaxTicks;
-            eventCounts = tEventCounts;
+            eventCountsSingle = tEventCountsSingle;
+            eventCountsMulti = tEventCountsMulti;
+            trackHasNotes = tTrackHasNotes;
 
             return midiMetaEvents;
         }
@@ -220,8 +256,8 @@ namespace OmniConverter
                 long noteCount = 0;
 
                 var Tracks = file.IterateTracks();
-                var midiMetaEvents = GetMetaEvents(Tracks, parallelOptions, ref maxTicks, ref noteCount, out ulong[] eventCounts, progressCallback);
-                var mergedMetaEvents = midiMetaEvents.MergeAll().ToArray();
+                var midiMetaEvents = GetMetaEvents(Tracks, parallelOptions, ref maxTicks, ref noteCount, out ulong[] eventCountsSingle, out ulong[] eventCountsMulti, out bool[] trackHasNotes, progressCallback);
+                var mergedMetaEvents = midiMetaEvents.MergeAll();
 
                 // get midi length in seconds
                 var mergedWithLength = mergedMetaEvents.MergeWith(new[] { new EndOfExclusiveEvent(maxTicks) });
@@ -231,7 +267,7 @@ namespace OmniConverter
                     seconds += e.DeltaTime;
                 }
 
-                return new MIDI(file, mergedMetaEvents, name, id, filepath, TimeSpan.FromSeconds(seconds), file.TrackCount, noteCount, fileSize, eventCounts, file.PPQ);
+                return new MIDI(file, midiMetaEvents, name, id, filepath, TimeSpan.FromSeconds(seconds), file.TrackCount, noteCount, fileSize, eventCountsSingle, eventCountsMulti, file.PPQ, trackHasNotes);
             }
             catch (OperationCanceledException) { }
             catch (Exception) { }
@@ -254,7 +290,7 @@ namespace OmniConverter
             if (disposing && _loadedFile != null)
                 _loadedFile.Dispose();
 
-            _metaEvent = Enumerable.Empty<MIDIEvent>();
+            _metaEvent = Array.Empty<IEnumerable<MIDIEvent>>();
             _id = 0;
             _name = string.Empty;
             _path = string.Empty;

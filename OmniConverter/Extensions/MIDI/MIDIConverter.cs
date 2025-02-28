@@ -320,7 +320,7 @@ namespace OmniConverter
         {
             List<ulong> totalEvents = new();
             foreach (MIDI midi in _midis)
-                totalEvents.Add(midi.TotalEventCount);
+                totalEvents.Add(_cachedSettings.Render.PerTrackMode ? midi.TotalEventCountMulti : midi.TotalEventCountSingle);
 
             _validator.SetTotalEventsCount(totalEvents);
         }
@@ -518,11 +518,11 @@ namespace OmniConverter
                 _customTitle = midi.Name;
                 string folder = _outputPath;
 
-                var midiData = midi.GetIterateTracksTimeBased();
+                var midiData = midi.GetIterateTracksTimeBased().ToArray();
                 var waveFormat = _audioRenderer.GetWaveFormat();
 
-                _validator.SetTotalMIDIEvents(midi.TotalEventCount);
-                _validator.SetTotalTracks(midiData.Count());
+                _validator.SetTotalMIDIEvents(midi.TotalEventCountMulti);
+                _validator.SetTotalTracks(midiData.Length);
 
                 using (MultiStreamMerger msm = new(waveFormat))
                 {
@@ -547,9 +547,9 @@ namespace OmniConverter
                             if (_cancToken.IsCancellationRequested)
                                 throw new OperationCanceledException();
 
-                            var midiTrack = midiData.ElementAt(track);
+                            var midiTrack = midiData[track];
 
-                            if (!midiTrack.Any(x => x is NoteOnEvent))
+                            if (!midi.TrackHasNotes[track])
                             {
                                 _validator.AddTrack();
                                 return;
@@ -850,7 +850,7 @@ namespace OmniConverter
             _file = midi.LoadedFile;
             _audioRenderer = audioRenderer;
             _events = events;
-            _eventsCount = track < 0 ? midi.TotalEventCount : midi.EventCounts[track];
+            _eventsCount = track < 0 ? midi.TotalEventCountSingle : midi.EventCountsMulti[track];
             _cachedSettings = _audioRenderer.GetCachedSettings();
             _length = midi.Length.TotalSeconds;
         }
