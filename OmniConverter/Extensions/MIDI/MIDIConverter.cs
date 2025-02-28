@@ -71,9 +71,10 @@ namespace OmniConverter
             var concurrentScheduler = new ConcurrentExclusiveSchedulerPair(
                 TaskScheduler.Default, maxConcurrencyLevel: _threadsCount).ConcurrentScheduler;
 
-            _parallelOptions = new ParallelOptions {
+            _parallelOptions = new ParallelOptions
+            {
                 TaskScheduler = concurrentScheduler,
-                MaxDegreeOfParallelism = _threadsCount, 
+                MaxDegreeOfParallelism = _threadsCount,
                 CancellationToken = _cancToken.Token
             };
         }
@@ -221,7 +222,7 @@ namespace OmniConverter
                     break;
 
                 case ConvStatus.MultiConv:
-                    _curStatus = 
+                    _curStatus =
                         $"{_valid + _nonvalid:N0} file(s) out of {_total:N0} have been converted.\n" +
                         $"Rendered {_curTrack:N0} track(s) out of {_tracks:N0}.\n" +
                         $"Please wait...";
@@ -305,7 +306,7 @@ namespace OmniConverter
         {
             List<ulong> totalEvents = new();
             foreach (MIDI midi in _midis)
-                totalEvents.Add(midi.TotalEventCount);
+                totalEvents.Add(_cachedSettings.Render.PerTrackMode ? midi.TotalEventCountMulti : midi.TotalEventCountSingle);
 
             _validator.SetTotalEventsCount(totalEvents);
         }
@@ -396,7 +397,7 @@ namespace OmniConverter
                                 Dispatcher.UIThread.Post(() => midiPanel?.Dispose());
                             }
 
-                            if (!_cancToken.IsCancellationRequested) 
+                            if (!_cancToken.IsCancellationRequested)
                                 _validator.AddValidMIDI();
 
                             Debug.PrintToConsole(Debug.LogType.Message, $"Thread for MIDI {outputFile1} is done rendering data.");
@@ -503,11 +504,11 @@ namespace OmniConverter
                 _customTitle = midi.Name;
                 string folder = _outputPath;
 
-                var midiData = midi.GetIterateTracksTimeBased();
+                var midiData = midi.GetIterateTracksTimeBased().ToArray();
                 var waveFormat = _audioRenderer.GetWaveFormat();
 
-                _validator.SetTotalMIDIEvents(midi.TotalEventCount);
-                _validator.SetTotalTracks(midiData.Count());
+                _validator.SetTotalMIDIEvents(midi.TotalEventCountMulti);
+                _validator.SetTotalTracks(midiData.Length);
 
                 using (MultiStreamMerger msm = new(waveFormat))
                 {
@@ -532,9 +533,9 @@ namespace OmniConverter
                             if (_cancToken.IsCancellationRequested)
                                 throw new OperationCanceledException();
 
-                            var midiTrack = midiData.ElementAt(track);
+                            var midiTrack = midiData[track];
 
-                            if (!midiTrack.Any(x => x is NoteOnEvent))
+                            if (!midi.TrackHasNotes[track])
                             {
                                 _validator.AddTrack();
                                 return;
@@ -687,7 +688,7 @@ namespace OmniConverter
                         catch (Exception ex)
                         {
                             Debug.PrintToConsole(Debug.LogType.Error, $"{ex}");
-                        }                 
+                        }
                     });
 
                     try
@@ -835,7 +836,7 @@ namespace OmniConverter
             _file = midi.LoadedFile;
             _audioRenderer = audioRenderer;
             _events = events;
-            _eventsCount = track < 0 ? midi.TotalEventCount : midi.EventCounts[track];
+            _eventsCount = track < 0 ? midi.TotalEventCountSingle : midi.EventCountsMulti[track];
             _cachedSettings = _audioRenderer.GetCachedSettings();
             _length = midi.Length.TotalSeconds;
         }
@@ -938,7 +939,7 @@ namespace OmniConverter
                                 case ControlChangeEvent:
                                     ControllerType ctrl = (ControllerType)eb[1];
 
-                                    if (_cachedSettings.Event.OverrideEffects && 
+                                    if (_cachedSettings.Event.OverrideEffects &&
                                         (ctrl == ControllerType.ReverbCtrl || ctrl == ControllerType.ChorusCtrl))
                                     {
                                         for (int i = 0; i <= 15; i++)
