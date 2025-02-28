@@ -2,7 +2,7 @@
   <PropertyGroup>
     <PublishSingleFile>true</PublishSingleFile> 
 	  <PublishTrimmed>true</PublishTrimmed>
-	  <TrimMode>link</TrimMode>
+	  <TrimMode>partial</TrimMode>
     <OutputType>WinExe</OutputType>
     <Nullable>enable</Nullable>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>

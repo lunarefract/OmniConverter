@@ -47,6 +47,7 @@ namespace OmniConverter
         [JsonProperty]
         public bool NoRampIn { get; private set; }
 
+        [JsonIgnore]
         public string SoundFontDisplayName => $"{(Enabled ? "" : "[OFF] ")}{SoundFontPath}";
 
         public SoundFont()

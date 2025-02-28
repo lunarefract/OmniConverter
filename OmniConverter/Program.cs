@@ -13,8 +13,9 @@ namespace OmniConverter
     internal class Program
     {
         public static readonly string tempConvFile = "omniconv.temp";
-        public static readonly string tempConvFilePath = AppContext.BaseDirectory + $"/{tempConvFile}";
-        private static readonly string settingsPath = AppContext.BaseDirectory + "/settings.json";
+        public static readonly string tempConvFilePath = $"{AppDomain.CurrentDomain.BaseDirectory}/{tempConvFile}";
+        private static readonly string settingsPath = $"{AppDomain.CurrentDomain.BaseDirectory}/settings.json";
+
         public static Settings Settings { get; private set; } = new();
         public static SoundFonts SoundFontsManager { get; private set; } = new();
         public static bool FFmpegAvailable { get; private set; } = false;
@@ -111,7 +112,7 @@ namespace OmniConverter
                 using (StreamReader sr = new(settingsPath))
                     settingsJSON = sr.ReadToEnd();
 
-                var jsonSettings = new JsonSerializerSettings { MissingMemberHandling = MissingMemberHandling.Ignore };
+                var jsonSettings = new JsonSerializerSettings { MissingMemberHandling = MissingMemberHandling.Ignore, NullValueHandling = NullValueHandling.Ignore };
                 var userSettings = JsonConvert.DeserializeObject<Settings?>(settingsJSON, jsonSettings);
 
                 if (userSettings == null)
@@ -122,8 +123,9 @@ namespace OmniConverter
 
                 Settings = userSettings;
             }
-            catch
+            catch (Exception ex)
             {
+                Debug.PrintToConsole(Debug.LogType.Warning, $"Something went wrong while opening the file! {ex.Message}");
                 CreateConfig(startup);
             }
             finally
