@@ -354,8 +354,8 @@ namespace OmniConverter
         public ulong GetTotalMIDIs() { return _total; }
 
         public void SetTotalEventsCount(List<ulong> events) { _events = events; }
-        public ulong AddEvent() { return _processedEvents++; }
-        public ulong AddEvents(ulong events) { return _processedEvents += events; }
+        public ulong AddEvent() { return Interlocked.Increment(ref _processedEvents); }
+        public ulong AddEvents(ulong events) { return Interlocked.Add(ref _processedEvents, events); }
         public ulong GetTotalEvents() {
             // No LINQ sum for ulong[]...
             ulong sum = 0;
@@ -366,8 +366,8 @@ namespace OmniConverter
         public ulong GetProcessedEvents() { return _processedEvents; }
 
         public void SetTotalMIDIEvents(ulong events) { _midiEvents = events; _curMidiEvents = 0; }
-        public ulong AddMIDIEvent() { return _curMidiEvents++; }
-        public ulong AddMIDIEvents(ulong events) { return _curMidiEvents += events; }
+        public ulong AddMIDIEvent() { return Interlocked.Increment(ref _curMidiEvents); }
+        public ulong AddMIDIEvents(ulong events) { return Interlocked.Add(ref _curMidiEvents, events); }
         public ulong GetTotalMIDIEvents() { return _midiEvents; }
         public ulong GetProcessedMIDIEvents() { return _curMidiEvents; }
 

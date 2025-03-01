@@ -537,6 +537,9 @@ namespace OmniConverter
 
                             if (!midi.TrackHasNotes[track])
                             {
+                                var eventCount = midi.EventCountsMulti[track];
+                                _validator.AddEvents(eventCount);
+                                _validator.AddMIDIEvents(eventCount);
                                 _validator.AddTrack();
                                 return;
                             }
@@ -1000,11 +1003,18 @@ namespace OmniConverter
                         }
                     }
 
-                    _midiRenderer.SendEndEvent();
-
+                    bool ended = false;
+                    double now = _converted;
                     while (_midiRenderer.ActiveVoices > 0)
                     {
+                        if (!ended && now >= _length)
+                        {
+                            _midiRenderer.SendEndEvent();
+                            ended = true;
+                        }
+
                         var readData = _midiRenderer.Read(buffer, 0, 0, buffer.Length);
+                        now += (double)(readData / waveFormat.Channels) / waveFormat.SampleRate;
 
                         if (readData > 0)
                             output.Write(buffer, 0, readData);
