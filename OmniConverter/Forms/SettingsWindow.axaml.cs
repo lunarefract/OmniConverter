@@ -106,6 +106,7 @@ public partial class SettingsWindow : Window
         ChorusValue.Value = Program.Settings.Event.ChorusVal;
         OverrideEffectsCheck(sender, e);
 
+        NoteForceEndDelay.Value = Program.Settings.Event.NoteForceEndDelay;
         IgnoreProgramChanges.IsChecked = Program.Settings.Event.IgnoreProgramChanges;
 
         MTMode.IsChecked = Program.Settings.Render.MultiThreadedMode;
@@ -399,6 +400,8 @@ public partial class SettingsWindow : Window
         if (ChorusValue.Value != null)
             Program.Settings.Event.ChorusVal = (short)ChorusValue.Value;
 
+        if (NoteForceEndDelay.Value != null)
+            Program.Settings.Event.NoteForceEndDelay = (int)NoteForceEndDelay.Value;
         if (IgnoreProgramChanges.IsChecked != null)
             Program.Settings.Event.IgnoreProgramChanges = (bool)IgnoreProgramChanges.IsChecked;
 

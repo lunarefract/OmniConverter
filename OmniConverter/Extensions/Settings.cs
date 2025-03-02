@@ -144,6 +144,9 @@ namespace OmniConverter
         [JsonProperty]
         public bool IgnoreProgramChanges = false;
 
+        [JsonProperty]
+        public int NoteForceEndDelay = 3000;
+
         public object Clone()
         {
             return MemberwiseClone();

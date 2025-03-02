@@ -1005,9 +1005,10 @@ namespace OmniConverter
 
                     bool ended = false;
                     double now = _converted;
+                    double end = _length + _cachedSettings.Event.NoteForceEndDelay / 1000.0;
                     while (_midiRenderer.ActiveVoices > 0)
                     {
-                        if (!ended && now >= _length)
+                        if (!ended && now >= end)
                         {
                             _midiRenderer.SendEndEvent();
                             ended = true;
