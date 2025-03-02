@@ -13,7 +13,8 @@ namespace OmniConverter
         FLAC,
         LAME,
         Vorbis,
-        Max = Vorbis
+        WavPack,
+        Max = WavPack
     }
 
     public static class AudioCodecTypeExtensions
@@ -26,6 +27,7 @@ namespace OmniConverter
                 AudioCodecType.FLAC => ".flac",
                 AudioCodecType.LAME => ".mp3",
                 AudioCodecType.Vorbis => ".ogg",
+                AudioCodecType.WavPack => ".wv",
                 _ => ""
             };
         }
@@ -38,6 +40,7 @@ namespace OmniConverter
                 AudioCodecType.FLAC => FFMpeg.GetCodec("flac"),
                 AudioCodecType.LAME => FFMpeg.GetCodec("libmp3lame"),
                 AudioCodecType.Vorbis => FFMpeg.GetCodec("libvorbis"),
+                AudioCodecType.WavPack => FFMpeg.GetCodec("wavpack"),
                 _ => null
             };
         }
@@ -93,6 +96,7 @@ namespace OmniConverter
                     break;
 
                 case AudioCodecType.PCM:
+                case AudioCodecType.WavPack:
                 default:
                     Reason = string.Empty;
                     return true;

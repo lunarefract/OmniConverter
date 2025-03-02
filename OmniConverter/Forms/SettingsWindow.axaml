@@ -185,6 +185,7 @@
 									<ComboBoxItem Name="FLAC">.flac (FLAC, lossless)</ComboBoxItem>
 									<ComboBoxItem Name="MP3">.mp3 (LAME, lossy)</ComboBoxItem>
 									<ComboBoxItem Name="OGG">.ogg (Vorbis, lossy)</ComboBoxItem>
+									<ComboBoxItem Name="WV">.wv (WavPack, lossless)</ComboBoxItem>
 								</ComboBox>
 							</StackPanel>
 						</Grid>
