@@ -47,6 +47,9 @@ namespace OmniConverter
         [JsonProperty]
         public bool NoRampIn { get; private set; }
 
+        [JsonProperty]
+        public byte MIDIPort { get; private set; }
+
         [JsonIgnore]
         public string SoundFontDisplayName => $"{(Enabled ? "" : "[OFF] ")}{SoundFontPath}";
 
@@ -58,6 +61,7 @@ namespace OmniConverter
             DestinationPreset = -1;
             DestinationBank = 0;
             DestinationBankLSB = 0;
+            MIDIPort = 0;
             Enabled = false;
 
             XGDrums = false;

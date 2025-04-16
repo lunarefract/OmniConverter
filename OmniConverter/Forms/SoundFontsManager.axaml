@@ -51,6 +51,13 @@
 							</Grid>
 						</StackPanel>
 						<StackPanel Margin="4">
+							<Label Content="META PORT EVENT" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+							<Grid ColumnDefinitions="1*, 2*">
+								<Label Grid.Column="0" Content="Destination:" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+								<NumericUpDown Name="MIDIPortDestination" Grid.Column="1" Value="0" Minimum="0" Maximum="255" HorizontalContentAlignment="Center" FormatString="0" ValueChanged="PresetSettingChanged" />
+							</Grid>
+						</StackPanel>
+						<StackPanel Margin="4">
 							<Label Content="ADDITIONAL SET." HorizontalContentAlignment="Center" FontWeight="Bold" Padding="4, 4, 4, 8"/>
 							<CheckBox Name="XGDrums" Content="Load XG bank first" HorizontalAlignment="Left" Click="GenSettingChanged" />
 							<CheckBox Name="LinAttMod" Content="Use linear attack"  HorizontalAlignment="Left" Click="GenSettingChanged" />

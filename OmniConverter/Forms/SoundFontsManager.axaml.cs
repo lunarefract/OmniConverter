@@ -117,6 +117,7 @@ public partial class SoundFontsManager : Window
             DestinationBank.Value = item.DestinationBank;
             DestinationBankLSB.Value = item.DestinationBankLSB;
             DestinationPreset.Value = item.DestinationPreset;
+            MIDIPortDestination.Value = item.MIDIPort;
 
             SettingsArea.IsEnabled = true;
             Enabled.IsEnabled = true;

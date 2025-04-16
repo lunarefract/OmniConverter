@@ -18,16 +18,14 @@ namespace OmniConverter
     public partial class MainWindow : Window
     {
         public ObservableCollection<MIDI> MIDIs = new();
-
         private DispatcherTimer _volumeWatcher = new DispatcherTimer();
-
         private MIDIWindow? _midiWindow = null;
 
         public MainWindow()
         {
             InitializeComponent();
 
-            _volumeWatcher.Interval = TimeSpan.FromSeconds(1);
+            _volumeWatcher.Interval = TimeSpan.FromSeconds(0.5);
             _volumeWatcher.Tick += VolumeWatcherFunc;
 
             OutputVolumeSlider.Value = Program.Settings.Synth.Volume;
@@ -61,6 +59,16 @@ namespace OmniConverter
 
             // Check if the label should be visible
             AddMIDIsLabel.IsVisible = MIDIs.Count == 0;
+        }
+
+        private MIDI[] GetMIDIsArray()
+        {
+            if (MIDIListView.SelectedItems == null)
+                return Array.Empty<MIDI>();
+
+            MIDI[] list = new MIDI[MIDIListView.SelectedItems.Count];
+            MIDIListView.SelectedItems.CopyTo(list, 0);
+            return list;
         }
 
         private void CheckBranch(object? sender, RoutedEventArgs e)
@@ -130,10 +138,12 @@ namespace OmniConverter
         {
             if (OutputVolumeSlider != null)
             {
+                double volPerc = OutputVolumeSlider.Value;
+
                 if (!_volumeWatcher.IsEnabled)
                     _volumeWatcher.Start();
 
-                OutputVolumeLab.Content = $"({20 * Math.Log10(OutputVolumeSlider.Value):0.00}dB) {OutputVolumeSlider.Value * 100.0:000.00}%";
+                OutputVolumeLab.Content = $"({20 * Math.Log10(volPerc):0.00}dB) {volPerc * 100.0:000.00}%";
             }             
         }
 
@@ -188,12 +198,14 @@ namespace OmniConverter
             if (MIDIListView.SelectedItems != null && MIDIListView.SelectedItems.Count > 0)
             {
                 // Let's copy the references to an array
-                MIDI[] list = new MIDI[MIDIListView.SelectedItems.Count];
-                MIDIListView.SelectedItems.CopyTo(list, 0);
+                var list = GetMIDIsArray();
 
                 // Delete the items
                 foreach (MIDI midi in list)
+                {
                     MIDIs.Remove(midi);
+                    midi.Dispose();
+                }                
 
                 CheckWatermark();
             }   
@@ -206,7 +218,13 @@ namespace OmniConverter
             switch (dr)
             {
                 case MessageBox.MsgBoxResult.Yes:
+                    var list = GetMIDIsArray();
+
                     MIDIs.Clear();
+
+                    foreach (MIDI midi in list)
+                        midi.Dispose();
+
                     break;
 
                 case MessageBox.MsgBoxResult.No:
@@ -222,8 +240,7 @@ namespace OmniConverter
             if (MIDIListView.SelectedItems != null && MIDIListView.SelectedItems.Count > 0)
             {
                 // Let's copy the references to an array
-                MIDI[] list = new MIDI[MIDIListView.SelectedItems.Count];
-                MIDIListView.SelectedItems.CopyTo(list, 0);
+                var list = GetMIDIsArray();
 
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {

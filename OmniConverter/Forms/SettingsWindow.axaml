@@ -115,6 +115,10 @@
 						<Label Grid.Column="0" Content="Max sustain time after the last event (ms)" VerticalAlignment="Center" />
 						<NumericUpDown Name="NoteForceEndDelay" HorizontalAlignment="Right" Width="180" FormatString="0" Value="3000" Minimum="0" Grid.Column="1" />
 					</Grid>
+					<StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+						<CheckBox Name="ZeroVelocityNoteOns" Content="Do not treat zero velocity Note On events as Note Offs" Margin="2, 16, 0, 0"/>
+						<Image Name="ZeroVelocityNoteOnsWng" Width="24" Source="/Assets/Warning.png" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="8, 16, 0, 0" IsVisible="True" PointerPressed="ZeroVelocityNoteOnsMsg" />
+					</StackPanel>
 					<Grid ColumnDefinitions="1*, 1.2*" Margin="2, 16, 0, 0">
 						<CheckBox Name="FilterVelocity" Content="Ignore notes with velocity in this range" IsCheckedChanged="FilterVelocityCheck" Grid.Column="0"/>
 						<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Grid.Column="1" >

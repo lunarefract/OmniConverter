@@ -101,6 +101,7 @@ public partial class SettingsWindow : Window
         KeyHighValue.Value = Program.Settings.Event.KeyHigh;
         FilterKeyCheck(sender, e);
 
+        ZeroVelocityNoteOns.IsChecked = Program.Settings.Event.ZeroVelocityNoteOns;
         OverrideEffects.IsChecked = Program.Settings.Event.OverrideEffects;
         ReverbValue.Value = Program.Settings.Event.ReverbVal;
         ChorusValue.Value = Program.Settings.Event.ChorusVal;
@@ -239,6 +240,13 @@ public partial class SettingsWindow : Window
         MessageBox.Show(this, "To use additional formats, you need ffmpeg.\n\n" +
             "Please install it on your system, or move the ffmpeg binary to the same folder as the converter.",
             "OmniConverter - Warning", MsBox.Avalonia.Enums.ButtonEnum.Ok, MsBox.Avalonia.Enums.Icon.Warning);
+    }
+
+    private void ZeroVelocityNoteOnsMsg(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+    {
+        MessageBox.Show(this, "Enabling this option might have some undesired effects on compositions that follow the MIDI standard.\n\n" +
+            "This should only be used mostly with bad exports that have unintended zero velocity Note On events, such as zero velocity notes " +
+            "exported from programs like FL Studio.", "OmniConverter - Warning", MsBox.Avalonia.Enums.ButtonEnum.Ok, MsBox.Avalonia.Enums.Icon.Warning);
     }
 
     private void MTModeCheck(object? sender, RoutedEventArgs e)
@@ -386,6 +394,8 @@ public partial class SettingsWindow : Window
         if (VelocityHighValue.Value != null)
             Program.Settings.Event.VelocityHigh = (int)VelocityHighValue.Value;
         
+        if (ZeroVelocityNoteOns.IsChecked != null)
+            Program.Settings.Event.ZeroVelocityNoteOns = (bool)ZeroVelocityNoteOns.IsChecked;
         if (FilterKey.IsChecked != null)
             Program.Settings.Event.FilterKey = (bool)FilterKey.IsChecked;
         if (KeyLowValue.Value != null)

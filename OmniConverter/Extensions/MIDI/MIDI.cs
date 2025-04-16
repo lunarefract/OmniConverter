@@ -249,6 +249,7 @@ namespace OmniConverter
         {
             var file = new MidiFile(filepath);
             ulong fileSize = (ulong)new FileInfo(filepath).Length;
+            file.ZeroVelocityNoteOns = Program.Settings.Event.ZeroVelocityNoteOns;
 
             try
             {
