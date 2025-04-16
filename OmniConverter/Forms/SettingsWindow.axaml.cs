@@ -246,7 +246,9 @@ public partial class SettingsWindow : Window
     {
         MessageBox.Show(this, "Enabling this option might have some undesired effects on compositions that follow the MIDI standard.\n\n" +
             "This should only be used mostly with bad exports that have unintended zero velocity Note On events, such as zero velocity notes " +
-            "exported from programs like FL Studio.", "OmniConverter - Warning", MsBox.Avalonia.Enums.ButtonEnum.Ok, MsBox.Avalonia.Enums.Icon.Warning);
+            "exported from programs like FL Studio.\n\n" +
+            "If a composition seems to sound broken or corrupted, disable this option and re-import it.", 
+            "OmniConverter - Warning", MsBox.Avalonia.Enums.ButtonEnum.Ok, MsBox.Avalonia.Enums.Icon.Warning);
     }
 
     private void MTModeCheck(object? sender, RoutedEventArgs e)
