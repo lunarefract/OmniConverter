@@ -138,7 +138,7 @@ namespace OmniConverter
         [DllImport(XSynthLib, EntryPoint = "XSynth_ChannelGroup_SendConfigEvent", CallingConvention = CallingConvention.Cdecl)]
         public static extern void ChannelGroup_SendConfigEvent(XSynth_ChannelGroup id, uint channel, ConfigEvent evt, uint param);
 
-        [DllImport(XSynthLib, EntryPoint = "XSynth_ChannelGroup_SendAudioEventAll", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(XSynthLib, EntryPoint = "XSynth_ChannelGroup_SendConfigEventAll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void ChannelGroup_SendConfigEventAll(XSynth_ChannelGroup id, ConfigEvent evt, uint param);
 
         [DllImport(XSynthLib, EntryPoint = "XSynth_ChannelGroup_ReadSamples", CallingConvention = CallingConvention.Cdecl)]
