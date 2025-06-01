@@ -22,7 +22,7 @@
 			<ToggleButton Name="TogglePause" Click="PauseConvBtnClick" Grid.Column="1" Content="Pause" Margin="10, 0, 0, 0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
 			<Button Name="CancelBtn" Click="CancelBtnClick" Grid.Column="2" Content="Cancel" Margin="10, 0, 0, 0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 		</Grid>
-		<ctrl:GroupBox Name="LogAreaGroup" Grid.Row="2" Header="Log" Theme="{StaticResource GroupBoxClassic}">
+		<ctrl:GroupBox Name="LogAreaGroup" Grid.Row="2" Header="Log" >
 			<ScrollViewer>
 				<StackPanel Name="LogArea" />
 			</ScrollViewer>

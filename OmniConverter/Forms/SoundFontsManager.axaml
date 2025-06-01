@@ -21,7 +21,7 @@
 					</DataTemplate>
 				</ListBox.ItemTemplate>
 			</ListBox>
-			<ctrl:GroupBox Grid.Column="1" Header="Settings" Theme="{StaticResource GroupBoxClassic}" Margin="10, 0, 0, 0">
+			<ctrl:GroupBox Grid.Column="1" Header="Settings"  Margin="10, 0, 0, 0">
 				<Panel>
 					<StackPanel Name="SettingsArea" IsEnabled="false">
 						<StackPanel Margin="4">

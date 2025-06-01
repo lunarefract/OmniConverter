@@ -136,6 +136,12 @@ namespace OmniConverter
         }
     }
 
+    public static class CoreAssembly
+    {
+        public static readonly Assembly Reference = typeof(CoreAssembly).Assembly;
+        public static readonly Version Version = Reference.GetName().Version;
+    }
+
     static class Debug
     {
         [DllImport("kernel32", SetLastError = true)]

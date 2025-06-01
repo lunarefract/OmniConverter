@@ -26,7 +26,7 @@
 								</ComboBox>
 							</StackPanel>
 						</Grid>
-						<ctrl:GroupBox Header="Global Settings" Theme="{StaticResource GroupBoxClassic}" Margin="0, 16, 0, 0" >
+						<ctrl:GroupBox Header="Global Settings" Margin="0, 16, 0, 0" >
 							<StackPanel>
 								<Grid Name="MaxVoicesGrid" ColumnDefinitions="1*, 2*" Margin="2">
 									<Label Grid.Column="0" Content="Voice limit" VerticalAlignment="Center"/>
@@ -64,12 +64,12 @@
 								<CheckBox Name="DisableFX" Content="Disable sound FXs (Reverb, Chorus etc.)" Margin="2" />
 							</StackPanel>
 						</ctrl:GroupBox>
-						<ctrl:GroupBox Name="BASSSettingsPanel" Header="BASS Settings" Theme="{StaticResource GroupBoxClassic}" Margin="0, 16, 0, 0" >
+						<ctrl:GroupBox Name="BASSSettingsPanel" Header="BASS Settings"  Margin="0, 16, 0, 0" >
 							<StackPanel>
 								<CheckBox Name="BASS_NoteOff1" Content="Follow overlaps when processing note off events" Margin="2" />
 							</StackPanel>
 						</ctrl:GroupBox>
-						<ctrl:GroupBox Name="XSynthSettingsPanel" Header="XSynth Settings" Theme="{StaticResource GroupBoxClassic}" Margin="0, 16, 0, 0" >
+						<ctrl:GroupBox Name="XSynthSettingsPanel" Header="XSynth Settings" Margin="0, 16, 0, 0" >
 							<StackPanel>
 								<Grid ColumnDefinitions="1*, 2*" Margin="2">
 									<Label Grid.Column="0" Content="Layer limit" VerticalAlignment="Center"/>
@@ -91,7 +91,7 @@
 								<CheckBox Name="XSynth_LinearEnv" Content="Use linear decay and release phases in volume envelopes" Margin="2" />
 							</StackPanel>
 						</ctrl:GroupBox>
-						<ctrl:GroupBox Header="Real Time Playback Simulation" Theme="{StaticResource GroupBoxClassic}" Margin="0, 16, 0, 0" >
+						<ctrl:GroupBox Header="Real Time Playback Simulation"  Margin="0, 16, 0, 0" >
 							<Grid ColumnDefinitions="1*, 1*" >
 								<CheckBox Name="RTSMode" Grid.Column="0" Content="Enable real time playback simulation" IsCheckedChanged="RTSModeCheck" />
 								<StackPanel Name="RTSPanel" Grid.Column="1" Orientation="Vertical">
@@ -152,7 +152,7 @@
 			<TabItem Header="Export">
 				<ScrollViewer VerticalScrollBarVisibility="Visible">
 				<StackPanel>
-				<ctrl:GroupBox Header="Multithreading" Theme="{StaticResource GroupBoxClassic}" Margin="0, 16, 0, 0" >
+				<ctrl:GroupBox Header="Multithreading"  Margin="0, 16, 0, 0" >
 					<StackPanel>
 						<CheckBox Name="MTMode" Content="Enable multi-threaded rendering mode, and render one MIDI (or MIDI track) per thread" Margin="2" IsCheckedChanged="MTModeCheck" />
 						<CheckBox Name="NoLimitThreadsOnCPU" Content="Allow allocation of more threads than what's available on the processor" Margin="2" IsCheckedChanged="NoLimitThreadsOnCPUCheck" />
@@ -165,7 +165,7 @@
 						</Grid>
 					</StackPanel>
 				</ctrl:GroupBox>
-				<ctrl:GroupBox Header="Render settings" Theme="{StaticResource GroupBoxClassic}" Margin="0, 16, 0, 0" >
+				<ctrl:GroupBox Header="Render settings"  Margin="0, 16, 0, 0" >
 					<StackPanel>
 						<CheckBox Name="PerTrackMode" Content="Render each track separately, then merge all of them in one audio file" Margin="2" IsCheckedChanged="PerTrackModeCheck" />
 						<CheckBox Name="PerTrackFile" IsEnabled="False" Content="Disable automatic merging of the tracks, and export all in separate files" Margin="2" IsCheckedChanged="PerTrackFileCheck"  />
@@ -177,7 +177,7 @@
 						</Grid>
 					</StackPanel>
 				</ctrl:GroupBox>
-				<ctrl:GroupBox Header="Audio encoding" Theme="{StaticResource GroupBoxClassic}" Margin="0, 16, 0, 0" >
+				<ctrl:GroupBox Header="Audio encoding"  Margin="0, 16, 0, 0" >
 					<StackPanel>
 						<CheckBox Name="AudioLimiter" Content="Enable audio limiter, to prevent distortion" Margin="2" />
 						<Grid Name="AudioCodecPanel" Margin="2"  ColumnDefinitions="2*, 1*">

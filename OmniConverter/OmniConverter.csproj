@@ -25,21 +25,20 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="11.0.11" />
-    <PackageReference Include="Avalonia.Desktop" Version="11.0.11" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.11" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.11" />
+    <PackageReference Include="Avalonia" Version="11.3.0" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.0" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.0" />
     <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
-    <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.0.11" />
+    <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.2.8" />
     <PackageReference Include="BinToss.GroupBox.Avalonia" Version="1.0.0" />
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="CSCore" Version="1.2.1.2" />
-    <PackageReference Include="DiscordRichPresence" Version="1.2.1.24" />
-    <PackageReference Include="FFMpegCore" Version="5.1.0" />
-    <PackageReference Include="MessageBox.Avalonia" Version="3.1.5.1" />
+    <PackageReference Include="FFMpegCore" Version="5.2.0" />
+    <PackageReference Include="MessageBox.Avalonia" Version="3.2.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="Octokit" Version="13.0.1" />
-    <PackageReference Include="ReactiveUI" Version="20.1.1" />
+    <PackageReference Include="Octokit" Version="14.0.0" />
+    <PackageReference Include="ReactiveUI" Version="20.2.45" />
   </ItemGroup>
 
   <ItemGroup>
@@ -66,20 +65,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Update="Forms\MIDIWindow.axaml.cs">
-      <DependentUpon>MIDIWindow.axaml</DependentUpon>
-    </Compile>
-    <Compile Update="Properties\Resources.Designer.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
-  </ItemGroup>
-
-  <ItemGroup>
     <EmbeddedResource Update="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
+      <Generator>PublicResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
   </ItemGroup>
+
+	<ItemGroup>
+		<Compile Update="Properties\Resources.Designer.cs">
+		  <DesignTime>True</DesignTime>
+		  <AutoGen>True</AutoGen>
+		  <DependentUpon>Properties\Resources.resx</DependentUpon>
+		</Compile>
+	</ItemGroup>
 </Project>

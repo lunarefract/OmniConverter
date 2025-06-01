@@ -984,7 +984,6 @@ namespace OmniConverter
 
                                     goto default;
 
-                                case MIDIPortEvent:
                                 case ChannelPrefixEvent:
                                     break;
 

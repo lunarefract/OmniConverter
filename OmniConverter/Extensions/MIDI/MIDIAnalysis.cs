@@ -190,7 +190,7 @@ namespace OmniConverter
 
         private void CheckFile(ref long CMI, string str)
         {
-            MIDI MIDIInfo = null;
+            MIDI? MIDIInfo = null;
             string infoMidiError = string.Empty;
 
             if (Path.GetExtension(str).ToLower() == ".mid" ||
@@ -228,7 +228,7 @@ namespace OmniConverter
         {
             try
             {
-                foreach (String file in GetFiles(Target))
+                foreach (var file in GetFiles(Target))
                 {
                     if (_cancToken.IsCancellationRequested) return;
                     CheckFile(ref CMI, file);

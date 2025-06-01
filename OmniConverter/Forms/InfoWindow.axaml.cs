@@ -32,7 +32,7 @@ public partial class InfoWindow : Window
         var year = DateTime.Now.Year.LimitToRange(2024, 9999);
 
         var pp = Environment.ProcessPath;
-        var cv = Assembly.GetExecutingAssembly().GetName().Version;
+        var cv = CoreAssembly.Version;
         var isDev = false;
 
         var dummy = new Version(0, 0, 0, 0);

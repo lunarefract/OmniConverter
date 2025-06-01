@@ -222,7 +222,7 @@ namespace OmniConverter
             return ocStream;
         }
 
-        public static MIDI? Load(long id, string filePath, string name, ParallelOptions parallelOptions, Action<int, int> progressCallback)
+        public static new MIDI? Load(long id, string filePath, string name, ParallelOptions parallelOptions, Action<int, int> progressCallback)
         {
             try
             {
@@ -232,11 +232,15 @@ namespace OmniConverter
                 long noteCount = 0;
 
                 var midTracks = midi.IterateTracks();
-                var midiMetaEvents = GetMetaEvents(midTracks, parallelOptions, ref maxTicks, ref noteCount, out ulong[] eventCountsSingle, out ulong[] eventCountsMulti, out bool[] trackHasNotes, progressCallback);
+                var getMetaRet = GetMetaEvents(midTracks, parallelOptions, ref maxTicks, ref noteCount, out ulong[] eventCountsSingle, out ulong[] eventCountsMulti, out bool[] trackHasNotes, progressCallback);
+                
+                var midiSuccess = getMetaRet.Item1;
+                var midiMetaEvents = getMetaRet.Item2;
+
                 var mergedMetaEvents = midiMetaEvents.MergeAll();
 
                 // get midi length in seconds
-                var mergedWithLength = mergedMetaEvents.MergeWith(new[] { new EndOfExclusiveEvent(maxTicks) });
+                var mergedWithLength = mergedMetaEvents.MergeWith([new EndOfExclusiveEvent(maxTicks)]);
                 double seconds = 0.0;
                 foreach (var e in mergedWithLength.MakeTimeBased(midi.PPQ))
                 {

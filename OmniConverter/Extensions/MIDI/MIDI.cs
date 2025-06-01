@@ -136,10 +136,11 @@ namespace OmniConverter
                 return new[] { before, track, after }.MergeAll().MakeTimeBased(_loadedFile.PPQ);
             });
 
-        public static IEnumerable<MIDIEvent>[] GetMetaEvents(IEnumerable<IEnumerable<MIDIEvent>> tracks, ParallelOptions parallelOptions, ref double maxTicks, ref long noteCount, out ulong[] eventCountsSingle, out ulong[] eventCountsMulti, out bool[] trackHasNotes, Action<int, int> progressCallback)
+        public static (bool, IEnumerable<MIDIEvent>[]) GetMetaEvents(IEnumerable<IEnumerable<MIDIEvent>> tracks, ParallelOptions parallelOptions, ref double maxTicks, ref long noteCount, out ulong[] eventCountsSingle, out ulong[] eventCountsMulti, out bool[] trackHasNotes, Action<int, int> progressCallback)
         {
             object l = new object();
 
+            bool corrupted = false;
             var trackCount = tracks.Count();
             var midiMetaEvents = new IEnumerable<MIDIEvent>[trackCount];
             int tracksParsed = 0;
@@ -162,67 +163,63 @@ namespace OmniConverter
 
                 try
                 {
-                    var tr = tracks.ElementAt(T);
-
-                    if (tr == null)
+                    var track = tracks.ElementAt(T);
+                    if (track != null)
                     {
-                        Interlocked.Increment(ref tracksParsed);
+                        foreach (var ev in track)
+                        {
+                            try
+                            {
+                                if (parallelOptions.CancellationToken.IsCancellationRequested)
+                                    parallelOptions.CancellationToken.ThrowIfCancellationRequested();
+                            }
+                            catch { break; }
+
+                            time += ev.DeltaTime;
+
+                            switch (ev)
+                            {
+                                case NoteOnEvent fev:
+                                    nc++;
+                                    delta += ev.DeltaTime;
+                                    eventCount++;
+                                    break;
+
+                                case TempoEvent tev:
+                                case ControlChangeEvent ccev:
+                                case ProgramChangeEvent pcev:
+                                case ChannelPressureEvent cpev:
+                                case SystemExclusiveMessageEvent sysexev:
+                                case PolyphonicKeyPressureEvent pkpev:
+                                    ev.DeltaTime += delta;
+                                    delta = 0;
+                                    trackMetaEvents.Add(ev);
+                                    if (!(ev is TempoEvent))
+                                        metaEventCount++;
+                                    break;
+
+                                default:
+                                    delta += ev.DeltaTime;
+                                    eventCount++;
+                                    break;
+                            }
+                        }
+
                         midiMetaEvents[T] = trackMetaEvents;
-                        lock (l)
-                        {
-                            progressCallback(tracksParsed, trackCount);
-                        }
-                        return;
-                    }
-
-                    foreach (var e in tr)
-                    {
-                        if (parallelOptions.CancellationToken.IsCancellationRequested)
-                            parallelOptions.CancellationToken.ThrowIfCancellationRequested();
-
-                        time += e.DeltaTime;
-
-                        switch (e)
-                        {
-                            case NoteOnEvent fev:
-                                nc++;
-                                delta += e.DeltaTime;
-                                eventCount++;
-                                break;
-
-                            case TempoEvent tev:
-                            case ControlChangeEvent ccev:
-                            case ProgramChangeEvent pcev:
-                            case ChannelPressureEvent cpev:
-                            case PitchWheelChangeEvent pwcev:
-                            case SystemExclusiveMessageEvent sysexev:
-                            case PolyphonicKeyPressureEvent pkpev:
-                                e.DeltaTime += delta;
-                                delta = 0;
-                                trackMetaEvents.Add(e);
-                                if (!(e is TempoEvent))
-                                    metaEventCount++;
-                                break;
-
-                            default:
-                                delta += e.DeltaTime;
-                                eventCount++;
-                                break;
-                        }
+                        tEventCountsSingle[T] = eventCount + metaEventCount;
+                        tEventCountsMulti[T] = eventCount;
+                        metaEventCounts[T] = metaEventCount;
+                        tTrackHasNotes[T] = nc != 0;
                     }
                 }
                 catch (Exception e)
                 {
                     Debug.PrintToConsole(Debug.LogType.Error, e.ToString());
+                    corrupted = true;
                 }
 
                 Interlocked.Increment(ref tracksParsed);
                 Interlocked.Add(ref tNoteCount, nc);
-                midiMetaEvents[T] = trackMetaEvents;
-                tEventCountsSingle[T] = eventCount + metaEventCount;
-                tEventCountsMulti[T] = eventCount;
-                metaEventCounts[T] = metaEventCount;
-                tTrackHasNotes[T] = nc != 0;
                 lock (l)
                 {
                     if (tMaxTicks < time) tMaxTicks = time;
@@ -242,7 +239,7 @@ namespace OmniConverter
             eventCountsMulti = tEventCountsMulti;
             trackHasNotes = tTrackHasNotes;
 
-            return midiMetaEvents;
+            return (!corrupted, midiMetaEvents);
         }
 
         public static MIDI? Load(long id, string filepath, string name, ParallelOptions parallelOptions, Action<int, int> progressCallback)
@@ -257,11 +254,15 @@ namespace OmniConverter
                 long noteCount = 0;
 
                 var Tracks = file.IterateTracks();
-                var midiMetaEvents = GetMetaEvents(Tracks, parallelOptions, ref maxTicks, ref noteCount, out ulong[] eventCountsSingle, out ulong[] eventCountsMulti, out bool[] trackHasNotes, progressCallback);
+                var getMetaRet = GetMetaEvents(Tracks, parallelOptions, ref maxTicks, ref noteCount, out ulong[] eventCountsSingle, out ulong[] eventCountsMulti, out bool[] trackHasNotes, progressCallback);
+
+                var midiSuccess = getMetaRet.Item1;
+                var midiMetaEvents = getMetaRet.Item2;
+
                 var mergedMetaEvents = midiMetaEvents.MergeAll();
 
                 // get midi length in seconds
-                var mergedWithLength = mergedMetaEvents.MergeWith(new[] { new EndOfExclusiveEvent(maxTicks) });
+                var mergedWithLength = mergedMetaEvents.MergeWith([new EndOfExclusiveEvent(maxTicks)]);
                 double seconds = 0.0;
                 foreach (var e in mergedWithLength.MakeTimeBased(file.PPQ))
                 {
@@ -271,7 +272,10 @@ namespace OmniConverter
                 return new MIDI(file, midiMetaEvents, name, id, filepath, TimeSpan.FromSeconds(seconds), file.TrackCount, noteCount, fileSize, eventCountsSingle, eventCountsMulti, file.PPQ, trackHasNotes);
             }
             catch (OperationCanceledException) { }
-            catch (Exception) { }
+            catch (Exception e)
+            {
+                Debug.PrintToConsole(Debug.LogType.Error, e.ToString());
+            }
 
             file.Dispose();
             return null;

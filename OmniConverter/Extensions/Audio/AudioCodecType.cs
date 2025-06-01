@@ -115,42 +115,47 @@ namespace OmniConverter
         // Hacky shit
         public static string? CheckFFMpegDirectory()
         {
+            var runCheck = RuntimeCheck.GetCurrentPlatform();
             string? query = null;
+            string? finalQuery = null;
             string? result = null;
-            var ffmpegbin = $"ffmpeg{(RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? ".exe" : "")}";
-            var ffmpegoc = $"{AppContext.BaseDirectory}/{ffmpegbin}";
+            var ffmpegBin = $"ffmpeg{(runCheck == OS.Windows ? ".exe" : "")}";
+            var ocFfmpeg = $"{AppContext.BaseDirectory}/{ffmpegBin}";
 
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            switch (runCheck)
             {
-                query = Environment.GetEnvironmentVariable("PATH")?
-                    .Split(';')
-                    .Where(s => File.Exists(Path.Combine(s, ffmpegbin)))
-                    .FirstOrDefault();
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                query = $"/usr/bin";
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                // Homebrew!!!!!
-                query = RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "/opt/homebrew/bin" : "/usr/local/bin";
-            }
-            else query = AppContext.BaseDirectory;
+                case OS.Windows:
+                    query = Environment.GetEnvironmentVariable("PATH")?
+                        .Split(';')
+                        .Where(s => File.Exists(Path.Combine(s, ffmpegBin)))
+                        .FirstOrDefault();
 
-            if (query != null)
-            {
-                query = $"{query}/{ffmpegbin}";
+                    break;
 
-                Debug.PrintToConsole(Debug.LogType.Message, $"Filepath for ffmpeg is: \"{query}\"");
+                case OS.Linux:
+                case OS.BSD:
+                    query = $"/usr/bin";
+                    break;
 
-                if (!ffmpegoc.Equals(query) && File.Exists($"{query}"))
-                {
-                    result = Path.GetDirectoryName(query);
-                    Debug.PrintToConsole(Debug.LogType.Message, $"Final directory for ffmpeg is \"{result}\"");
-                }
-                else result = File.Exists(ffmpegoc) ? AppContext.BaseDirectory : null;
+                case OS.macOS:
+                    query = RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "/opt/homebrew/bin" : "/usr/local/bin";
+                    break;
+
+                default:
+                    break;
             }
+
+            if (query == null)
+                query = AppContext.BaseDirectory;
+
+            finalQuery = $"{query}/{ffmpegBin}";
+            Debug.PrintToConsole(Debug.LogType.Message, $"Checking for ffmpeg in \"{finalQuery}\"...");
+
+            if (File.Exists($"{finalQuery}")) result = Path.GetDirectoryName(finalQuery);
+            else result = File.Exists(ocFfmpeg) ? AppContext.BaseDirectory : null;
+
+            if (result != null) Debug.PrintToConsole(Debug.LogType.Message, $"Found ffmpeg at \"{result}\"");
+            else Debug.PrintToConsole(Debug.LogType.Message, $"Could not find ffmpeg, only WAV is available.");
 
             return result;
         }

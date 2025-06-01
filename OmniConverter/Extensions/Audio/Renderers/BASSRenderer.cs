@@ -4,23 +4,29 @@ using ManagedBass.Fx;
 using ManagedBass.Midi;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 // Written with help from Arduano
 
 namespace OmniConverter
 {
+    public struct MidiFontOC
+    {
+        public MidiFontEx2 bmStruct;
+        public byte port;
+    }
+
     public class BASSEngine : AudioEngine
     {
         private int FlacPlug = 0;
-        private MidiFontEx[]? _bassArray;
+        private MidiFontOC[]? _bassArray;
 
         public BASSEngine(Settings settings) : base(settings, false)
         {
             if (Bass.Init(Bass.NoSoundDevice, _waveFormat.SampleRate, DeviceInitFlags.Default))
             {
-                _bassArray = InitializeSoundFonts();
-
                 var tmp = BassMidi.CreateStream(16, BassFlags.Default, 0);
                 var unixPrefix = !RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
@@ -39,12 +45,14 @@ namespace OmniConverter
 
                     Bass.StreamFree(tmp);
 
-                    _init = true;
-
                     if (FlacPlug == 0)
                         Debug.PrintToConsole(Debug.LogType.Warning, "BASSFLAC failed to load, this could lead to incorrect opcode handling when using SFZ based SoundFonts using FLAC samples.");
                     else
                         Debug.PrintToConsole(Debug.LogType.Message, "BASSFLAC loaded");
+
+                    _bassArray = InitializeSoundFonts();
+
+                    _init = true;
 
                     return;
                 }
@@ -71,9 +79,9 @@ namespace OmniConverter
             _disposed = true;
         }
 
-        private MidiFontEx[]? InitializeSoundFonts()
+        private MidiFontOC[]? InitializeSoundFonts()
         {
-            var _bassArray = new List<MidiFontEx>();
+            var _bassArray = new List<MidiFontOC>();
 
             foreach (SoundFont sf in _cachedSettings.SoundFontsList)
             {
@@ -83,7 +91,7 @@ namespace OmniConverter
                     continue;
                 }
 
-                MidiFontEx bsf;
+                MidiFontOC bsf = new MidiFontOC();
                 FontInitFlags bsfl = 0;
 
                 // 0x40000 = BASS_MIDI_FONT_XGDRUMS
@@ -108,16 +116,18 @@ namespace OmniConverter
                 {
                     Debug.PrintToConsole(Debug.LogType.Message, $"SoundFont handle initialized. Handle = {sfHandle:X8}");
 
-                    bsf.Handle = sfHandle;
-                    bsf.SoundFontPreset = sf.SourcePreset;
-                    bsf.SoundFontBank = sf.SourceBank;
-                    bsf.DestinationPreset = sf.DestinationPreset;
-                    bsf.DestinationBank = sf.DestinationBank;
-                    bsf.DestinationBankLSB = sf.DestinationBankLSB;
+                    bsf.bmStruct.Handle = sfHandle;
+                    bsf.bmStruct.SoundFontPreset = sf.SourcePreset;
+                    bsf.bmStruct.SoundFontBank = sf.SourceBank;
+                    bsf.bmStruct.DestinationPreset = sf.DestinationPreset;
+                    bsf.bmStruct.DestinationBank = sf.DestinationBank;
+                    bsf.bmStruct.DestinationBankLSB = sf.DestinationBankLSB;
+                    bsf.port = sf.MIDIPort;
+
                     Debug.PrintToConsole(Debug.LogType.Message,
                         string.Format(
                             "spreset = {0}, sbank = {1}, dpreset = {2}, dbank = {3}, dbanklsb = {4}",
-                            bsf.SoundFontPreset, bsf.SoundFontBank, bsf.DestinationPreset, bsf.DestinationBank, bsf.DestinationBankLSB, sf.XGDrums
+                            bsf.bmStruct.SoundFontPreset, bsf.bmStruct.SoundFontBank, bsf.bmStruct.DestinationPreset, bsf.bmStruct.DestinationBank, bsf.bmStruct.DestinationBankLSB, sf.XGDrums
                             )
                         );
 
@@ -128,7 +138,7 @@ namespace OmniConverter
                             )
                         );
 
-                    BassMidi.FontLoad(bsf.Handle, bsf.SoundFontPreset, bsf.SoundFontBank);
+                    BassMidi.FontLoad(bsf.bmStruct.Handle, bsf.bmStruct.SoundFontPreset, bsf.bmStruct.SoundFontBank);
                     _bassArray.Add(bsf);
                     Debug.PrintToConsole(Debug.LogType.Message, "SoundFont loaded and added to BASS_MIDI_FONTEX array.");
                 }
@@ -151,14 +161,14 @@ namespace OmniConverter
             {
                 Debug.PrintToConsole(Debug.LogType.Message, "Freeing SoundFont handles...");
                 foreach (var bsf in _bassArray)
-                    BassMidi.FontFree(bsf.Handle);
+                    BassMidi.FontFree(bsf.bmStruct.Handle);
 
                 Debug.PrintToConsole(Debug.LogType.Message, "Handles freed.");
                 _bassArray = null;
             }
         }
 
-        public MidiFontEx[]? GetSoundFontsArray() => _bassArray;
+        public MidiFontOC[]? GetSoundFontsArray() => _bassArray;
     }
 
     public class BASSRenderer : AudioRenderer
@@ -169,7 +179,8 @@ namespace OmniConverter
         private int _volFx = 0;
 
         private VolumeFxParameters? VolParam = null;
-        private MidiFontEx[]? SfArray = [];
+        private List<MidiFontEx2> bmStructs = new List<MidiFontEx2>();
+        private MidiFontOC[]? SfArray = [];
 
         public BASSRenderer(BASSEngine bass) : base(bass, false)
         {
@@ -197,10 +208,19 @@ namespace OmniConverter
 
             Bass.ChannelSetAttribute(_streamHandle, ChannelAttribute.MidiKill, Convert.ToDouble(_cachedSettings.Synth.KilledNoteFading));
 
+            bmStructs.Clear();
             SfArray = bass.GetSoundFontsArray();
             if (SfArray != null)
             {
-                BassMidi.StreamSetFonts(_streamHandle, SfArray, SfArray.Length);
+                foreach (var sf in SfArray)
+                {
+                    if (sf.port == 0)
+                    {
+                        bmStructs.Add(sf.bmStruct);
+                    }
+                }
+
+                BassMidi.StreamSetFonts(_streamHandle, bmStructs.ToArray(), bmStructs.Count);
                 BassMidi.StreamLoadSamples(_streamHandle);
                 Debug.PrintToConsole(Debug.LogType.Message, $"{UniqueID} - Loaded {SfArray.Length} SoundFonts");
             }
@@ -271,12 +291,14 @@ namespace OmniConverter
         {
             var status = data[0];
 
+            var ret = -1;
             var isSysEx = (EventType)status == EventType.SystemExclusive;
             var type = (EventType)(status & 0xF0);
-            var param1 = data.Length >= 2 ? data[1] : 0;
-            var param2 = data.Length >= 3 ? data[2] : 0;
+            var chan = status & 0xF;
+            var param1 = data.Length > 1 ? data[1] : 0;
+            var param2 = data.Length > 2 ? data[2] : 0;
 
-            int eventParams;
+            int? eventParams = null;
             var eventType = MidiEventType.Note;
 
             switch (type)
@@ -309,18 +331,66 @@ namespace OmniConverter
                     eventParams = param2 << 7 | param1;
                     break;
 
+                case EventType.MetaEvent:
+                    switch (param1)
+                    {
+                        case 21:
+                            {
+                                if (SfArray == null)
+                                {
+                                    Debug.PrintToConsole(Debug.LogType.Error, $"Huh?");
+                                    return;
+                                }
+
+                                if (data.Length != 4)
+                                {
+                                    Debug.PrintToConsole(Debug.LogType.Error, $"Received MIDI port event, but data length is {data.Length} instead of 4!");
+                                    return;
+                                }
+
+                                var port = data[3];
+
+                                if (data[3] != 0)
+                                {
+                                    var tgtSf = SfArray.Where(item => item.port == port).Select(item => item.bmStruct);
+
+                                    if (tgtSf.Any())
+                                    {
+                                        bmStructs.Clear();
+                                        foreach (var bmStruct in tgtSf)
+                                        {
+                                            bmStructs.Add(bmStruct);
+                                        }
+
+                                        BassMidi.StreamSetFonts(_streamHandle, bmStructs.ToArray(), bmStructs.Count());
+                                    }              
+                                }
+                            }
+                            return;
+
+                        default:
+                            ret = 0;
+                            break;
+                    }
+                    break;
+
                 default:
-                    var ret = BassMidi.StreamEvents(_streamHandle, MidiEventsMode.Raw | MidiEventsMode.NoRunningStatus, data, data.Length);
-
-                    if (ret == -1 || (isSysEx && ret < 1))
-                        Debug.PrintToConsole(Debug.LogType.Error, $"Unsupported {(isSysEx ? "SysEx" : "data")}! >> {BitConverter.ToString(data).Replace("-", "")}");
-
-                    return;
+                    ret = 0;
+                    break;
             }
 
-            var success = BassMidi.StreamEvent(_streamHandle, status & 0xF, eventType, eventParams);
+            if (ret == 0)
+            {
+                ret = BassMidi.StreamEvents(_streamHandle, MidiEventsMode.Raw | MidiEventsMode.NoRunningStatus, data, data.Length);
 
-            if (!success)
+                if (ret == -1 || (isSysEx && ret < 1))
+                    Debug.PrintToConsole(Debug.LogType.Error, $"Unsupported {(isSysEx ? "SysEx" : "data")}! >> {BitConverter.ToString(data).Replace("-", "")}");
+            }
+
+            if (ret < 1 && eventParams != null)
+                ret = Convert.ToInt32(BassMidi.StreamEvent(_streamHandle, chan, eventType, (int)eventParams));
+
+            if (ret < 1)
             {
                 switch (type)
                 {

@@ -1,7 +1,10 @@
-﻿using System;
+﻿using Avalonia;
+using Avalonia.Platform;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -11,6 +14,17 @@ namespace OmniConverter
     {
         Up = -1,
         Down = 1
+    }
+
+    public enum OS
+    {
+        Unknown = -1,
+        Windows,
+        Linux,
+        Android,
+        macOS,
+        iOS,
+        BSD
     }
 
     public class ObjPtr<T> where T : struct
@@ -61,6 +75,23 @@ namespace OmniConverter
 
             // Return the new index value
             return wIndexToMove;
+        }
+    }
+
+    internal static class RuntimeCheck
+    {
+        public static OS GetCurrentPlatform()
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                return OS.Windows;
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.FreeBSD))
+                return OS.BSD;
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                return OperatingSystem.IsAndroid() ? OS.Android : OS.Linux;
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                return OperatingSystem.IsIOS() ? OS.iOS : OS.macOS;
+
+            return OS.Unknown;
         }
     }
 

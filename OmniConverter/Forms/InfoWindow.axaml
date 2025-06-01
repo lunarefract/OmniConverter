@@ -31,26 +31,29 @@
 				</TextBlock>
 			</StackPanel>
 			<Grid Grid.Row="1" RowDefinitions="1*, 32">
-				<ctrl:GroupBox Grid.Row="0" Margin="10, 0, 0, 10" Header="Renderer information" Theme="{StaticResource GroupBoxClassic}" VerticalAlignment="Bottom" >
-					<StackPanel>
-						<Grid ColumnDefinitions="150, 6*">
-							<Label Grid.Column="0">BASS version:</Label>
-							<Label Grid.Column="1" Name="BASSVersion">-</Label>
-						</Grid>
-						<Grid ColumnDefinitions="150, 6*">
-							<Label Grid.Column="0">BASSMIDI version:</Label>
-							<Label Grid.Column="1" Name="BMIDIVersion">-</Label>
-						</Grid>
-						<Grid ColumnDefinitions="150, 6*">
-							<Label Grid.Column="0">XSynth version:</Label>
-							<Label Grid.Column="1" Name="XSynthVersion">-</Label>
-						</Grid>
-						<Grid ColumnDefinitions="150, 6*">
-							<Label Grid.Column="0">Update branch:</Label>
-							<Label Grid.Column="1" Name="CurUpdateBranch">-</Label>
-						</Grid>
-					</StackPanel>
-				</ctrl:GroupBox>
+				<StackPanel Grid.Row="0" Margin="10, 0, 0, 0">
+					<Separator />
+					<ctrl:GroupBox Header="Renderer information"  VerticalAlignment="Bottom" >
+						<StackPanel>
+							<Grid ColumnDefinitions="150, 6*">
+								<Label Grid.Column="0">BASS version:</Label>
+								<Label Grid.Column="1" Name="BASSVersion">-</Label>
+							</Grid>
+							<Grid ColumnDefinitions="150, 6*">
+								<Label Grid.Column="0">BASSMIDI version:</Label>
+								<Label Grid.Column="1" Name="BMIDIVersion">-</Label>
+							</Grid>
+							<Grid ColumnDefinitions="150, 6*">
+								<Label Grid.Column="0">XSynth version:</Label>
+								<Label Grid.Column="1" Name="XSynthVersion">-</Label>
+							</Grid>
+							<Grid ColumnDefinitions="150, 6*">
+								<Label Grid.Column="0">Update branch:</Label>
+								<Label Grid.Column="1" Name="CurUpdateBranch">-</Label>
+							</Grid>
+						</StackPanel>
+					</ctrl:GroupBox>
+				</StackPanel>
 				<Grid Grid.Row="1" ColumnDefinitions="1*, 2*" Margin="10, 0, 0, 0">
 					<Grid Grid.Column="0">
 						<Button Content="Change branch" HorizontalContentAlignment="Center" Click="ChangeBranch" />
